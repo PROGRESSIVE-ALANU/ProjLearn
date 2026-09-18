@@ -12,7 +12,7 @@
 <meta content="/assets/l8-social.png" property="og:image"/>
 <link href="/assets/l8-mark.svg" rel="icon" type="image/svg+xml"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
-<link href="/styles.css?v=20260918g" rel="stylesheet"/>
+<link href="/styles.css?v=20260918h" rel="stylesheet"/>
 <title>ProjLearn — Your study room</title>
 </head>
 <body class="study-workspace">
@@ -122,8 +122,9 @@
 <h4 id="source-quiz-question">Question</h4>
 <p class="quiz-instruction">Answer from memory first. ProjLearn will compare your response with the source-backed answer before you reveal the evidence.</p>
 <div class="typed-answer-wrap">
-<label for="typed-answer">Your answer</label>
+<label for="typed-answer" id="typed-answer-label">Your answer</label>
 <textarea id="typed-answer" rows="4" placeholder="Type what you remember…"></textarea>
+<div aria-label="Answer choices" class="mcq-options" hidden="" id="mcq-options"></div>
 <div class="typed-answer-actions">
 <button class="button button-primary" id="check-typed-answer" type="button">Check answer</button>
 <button class="button button-secondary" id="reveal-source" type="button">Reveal source evidence</button>
@@ -316,6 +317,6 @@
 </section>
 </div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
-<script src="/app.js?v=20260918g" type="module"></script>
+<script src="/app.js?v=20260918h" type="module"></script>
 </body>
 </html>

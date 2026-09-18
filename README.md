@@ -59,6 +59,20 @@ The live path now uses one provider call per compilation to reduce latency and t
 4. The original uploaded file is not stored by ProjLearn in this prototype.
 5. Without live AI, compilation stays local in the browser.
 
+
+## Streamlit deployment
+
+ProjLearn can also run as a native Streamlit app from this same repository.
+
+- Entry point: `streamlit_app.py`
+- Dependencies: `requirements.txt`
+- Theme: `.streamlit/config.toml`
+- In Streamlit Community Cloud, create an app from `PROGRESSIVE-ALANU/ProjLearn`, branch `main`, and set the main file path to `streamlit_app.py`.
+- Add `OPENAI_API_KEY` under the Streamlit app's **Secrets**. Do not commit the key to GitHub.
+- Optional: set `PROJLEARN_MODEL` as an environment variable; otherwise the Streamlit app uses `gpt-5.6-luna`.
+
+The Streamlit version supports PDF/TXT/Markdown upload, the same single-pass course compiler, deterministic source-quote validation, concepts/evidence views, and typed retrieval answers with local answer checking.
+
 ## TAPIA demo path
 
 1. Load a course source or choose **Load TAPIA demo**.

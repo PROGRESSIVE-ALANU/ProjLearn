@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918d";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918e";
 import {
   buildSession,
   calculateMastery,
@@ -6,9 +6,9 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918d";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918d";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918d";
+} from "./src/engine.js?v=20260918e";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918e";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918e";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -105,6 +105,9 @@ const elements = {
   sourceQuizConcept: document.querySelector("#source-quiz-concept"),
   sourceQuizPriority: document.querySelector("#source-quiz-priority"),
   sourceQuizQuestion: document.querySelector("#source-quiz-question"),
+  typedAnswer: document.querySelector("#typed-answer"),
+  checkTypedAnswer: document.querySelector("#check-typed-answer"),
+  answerFeedback: document.querySelector("#answer-feedback"),
   revealSource: document.querySelector("#reveal-source"),
   sourceEvidence: document.querySelector("#source-evidence"),
   selfCheckActions: document.querySelector("#self-check-actions"),
@@ -190,6 +193,35 @@ function showToast(message) {
 
 function escapeHtml(value = "") {
   return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+}
+
+function normalizeAnswerForCheck(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/ε₀|epsilon[_\s-]?0|epsilon\s*naught/g, "epsilon0")
+    .replace(/∮|oint/g, "integral")
+    .replace(/Φ|phi/g, "flux")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function gradeTypedAnswer(answer, expectedAnswer) {
+  const typed = normalizeAnswerForCheck(answer);
+  const expected = normalizeAnswerForCheck(expectedAnswer);
+  if (!typed) return { verdict: "empty", score: 0, message: "Type an answer first." };
+  if (!expected) return { verdict: "manual", score: 0, message: "Answer saved. Reveal the source and self-check this one." };
+
+  const stop = new Set(["the","and","that","this","with","from","into","your","what","when","where","which","then","than","have","has","had","for","are","was","were","its","you","can","will","law","given","summary","state","equals","equal"]);
+  const expectedTokens = [...new Set(expected.split(/\s+/).filter((token) => token.length >= 3 && !stop.has(token)))];
+  if (!expectedTokens.length) return { verdict: "manual", score: 0, message: "Answer saved. Reveal the source and self-check this one." };
+
+  const typedTokens = new Set(typed.split(/\s+/));
+  const matched = expectedTokens.filter((token) => typedTokens.has(token)).length;
+  const score = matched / expectedTokens.length;
+
+  if (score >= 0.7) return { verdict: "strong", score, message: "Looks right. Your answer covers most of the source-backed answer." };
+  if (score >= 0.4) return { verdict: "close", score, message: "Close. You have part of it — compare with the source before deciding." };
+  return { verdict: "review", score, message: "Needs another look. Compare your answer with the source evidence." };
 }
 
 function citationLabel(citation) {
@@ -355,6 +387,11 @@ function renderSourceQuiz() {
   elements.sourceQuizPriority.textContent = state.needsReview ? "MISSED — REVIEW NOW" : state.attempts ? "RETURN" : "NEW";
   elements.sourceQuizPriority.classList.toggle("is-missed", state.needsReview);
   elements.sourceQuizQuestion.textContent = prompt.prompt;
+  elements.typedAnswer.value = "";
+  elements.answerFeedback.hidden = true;
+  elements.answerFeedback.textContent = "";
+  elements.answerFeedback.dataset.verdict = "";
+  elements.checkTypedAnswer.dataset.promptId = prompt.id;
   elements.sourceEvidence.textContent = `${prompt.expectedAnswer ? `Expected answer: ${prompt.expectedAnswer}\n\n` : ""}Source evidence: ${prompt.evidence || prompt.citation?.quote || "No excerpt available."}\n\n${citationLabel(prompt.citation)}${prompt.criticNote ? `\nCritic: ${prompt.criticNote}` : ""}`;
   elements.sourceEvidence.hidden = true;
   elements.selfCheckActions.hidden = true;
@@ -697,6 +734,24 @@ elements.submitAnswer.addEventListener("click", submitCurrentAnswer);
 elements.nextQuestion.addEventListener("click", advanceQuestion);
 elements.finishSession.addEventListener("click", () => closeSession({ completed: true }));
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+elements.checkTypedAnswer.addEventListener("click", () => {
+  const promptId = elements.checkTypedAnswer.dataset.promptId;
+  const prompt = courseState.course?.prompts?.find((item) => item.id === promptId);
+  if (!prompt) return;
+  const result = gradeTypedAnswer(elements.typedAnswer.value, prompt.expectedAnswer);
+  elements.answerFeedback.hidden = false;
+  elements.answerFeedback.dataset.verdict = result.verdict;
+  elements.answerFeedback.textContent = result.message;
+  if (result.verdict !== "empty") elements.selfCheckActions.hidden = false;
+});
+
+elements.typedAnswer.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    elements.checkTypedAnswer.click();
+  }
+});
+
 elements.revealSource.addEventListener("click", () => { elements.sourceEvidence.hidden = false; elements.selfCheckActions.hidden = false; elements.revealSource.hidden = true; });
 elements.markKnew.addEventListener("click", () => recordPromptResult(elements.markKnew.dataset.promptId, "knew"));
 elements.markMissed.addEventListener("click", () => recordPromptResult(elements.markMissed.dataset.promptId, "missed"));

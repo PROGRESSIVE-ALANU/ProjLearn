@@ -69,6 +69,24 @@ function findEvidence(text, term, sourceName = "Course material") {
   return { evidence: fallback, citation: { source: sourceName, page: null, quote: fallback.slice(0, 180) } };
 }
 
+function buildLocalSummary(text, concepts) {
+  const sentences = text
+    .split(sentenceSplit)
+    .map((sentence) => sentence.replace(/\s+/g, " ").replace(/\[Page \d+\]/g, "").trim())
+    .filter((sentence) => sentence.length >= 45 && sentence.length <= 260);
+
+  const keyPoints = sentences.slice(0, 5);
+  const overview = keyPoints.slice(0, 2).join(" ").slice(0, 520)
+    || "ProjLearn extracted the main ideas from the uploaded source for review.";
+  const studyFocus = concepts.slice(0, 4).map((concept) => concept.title);
+
+  return {
+    overview,
+    keyPoints: keyPoints.length >= 3 ? keyPoints : concepts.slice(0, 5).map((concept) => concept.evidence).filter(Boolean),
+    studyFocus: studyFocus.length >= 2 ? studyFocus : ["Core ideas", "Source evidence"],
+  };
+}
+
 function buildClaims(text, concepts) {
   const sentences = text
     .split(sentenceSplit)
@@ -143,8 +161,10 @@ export function compileCourseFromText({ text, sourceName = "Course material" }) 
   }));
 
   const firstUsefulLine = normalized.split("\n").map((line) => line.trim()).find((line) => line.length >= 8 && line.length <= 100);
+  const summary = buildLocalSummary(normalized, concepts);
   return {
     title: firstUsefulLine ?? sourceName.replace(/\.[a-z0-9]+$/i, ""),
+    summary,
     sourceName,
     charCount: normalized.length,
     concepts,

@@ -222,7 +222,14 @@ export async function handler(event) {
     const sourceName = String(body.sourceName || 'Course material').slice(0, 180);
     if (text.length < 200) return json(400, { error: 'Not enough readable source text to compile.' });
 
-    const cartographer = await callStructured({
+    const requestedStage = String(body.stage || 'full');
+    const allowedStages = new Set(['full', 'cartographer', 'scholar', 'examiner', 'critic']);
+    if (!allowedStages.has(requestedStage)) {
+      return json(400, { error: 'Unknown compiler stage.', code: 'INVALID_STAGE' });
+    }
+    const previous = body.previous && typeof body.previous === 'object' ? body.previous : {};
+
+    const cartographer = previous.cartographer || await callStructured({
       model: DEFAULT_MODEL,
       schema: cartographerSchema,
       schemaName: 'projlearn_cartographer',
@@ -230,8 +237,9 @@ export async function handler(event) {
       instructions: `You are ProjLearn's Cartographer. Build a compact dependency-aware map ONLY from the supplied course source. Do not add outside facts. Prefer teachable concepts over generic words. prerequisiteTitles must name only concepts you also return.`,
       input: `SOURCE NAME: ${sourceName}\n\nSOURCE:\n${text}`,
     });
+    if (requestedStage === 'cartographer') return json(200, { stage: 'cartographer', data: cartographer });
 
-    const scholar = await callStructured({
+    const scholar = previous.scholar || await callStructured({
       model: DEFAULT_MODEL,
       schema: scholarSchema,
       schemaName: 'projlearn_scholar',
@@ -239,8 +247,9 @@ export async function handler(event) {
       instructions: `You are ProjLearn's Scholar. Ground every concept and review claim in the supplied source. Do not repair or supplement the source with outside knowledge. Citation quote must be a short exact source excerpt, source must name the supplied source, and page should use [Page N] markers when present; otherwise null.`,
       input: `SOURCE NAME: ${sourceName}\n\nCONCEPT MAP:\n${JSON.stringify(cartographer)}\n\nSOURCE:\n${text}`,
     });
+    if (requestedStage === 'scholar') return json(200, { stage: 'scholar', data: scholar });
 
-    const examiner = await callStructured({
+    const examiner = previous.examiner || await callStructured({
       model: DEFAULT_MODEL,
       schema: examinerSchema,
       schemaName: 'projlearn_examiner',
@@ -248,8 +257,9 @@ export async function handler(event) {
       instructions: `You are ProjLearn's Examiner. Create retrieval-practice prompts answerable ONLY from the supplied source. Mix recall, explanation, application, and comparison when the source supports them. Do not write trick questions. expectedAnswer must be concise and source-grounded.`,
       input: `SOURCE NAME: ${sourceName}\n\nCONCEPT MAP:\n${JSON.stringify(cartographer)}\n\nSCHOLAR NOTES:\n${JSON.stringify(scholar)}\n\nSOURCE:\n${text}`,
     });
+    if (requestedStage === 'examiner') return json(200, { stage: 'examiner', data: examiner });
 
-    const critic = await callStructured({
+    const critic = previous.critic || await callStructured({
       model: CRITIC_MODEL,
       schema: criticSchema,
       schemaName: 'projlearn_critic',

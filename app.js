@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918c";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918d";
 import {
   buildSession,
   calculateMastery,
@@ -6,9 +6,9 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918c";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918c";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918c";
+} from "./src/engine.js?v=20260918d";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918d";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918d";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -199,7 +199,7 @@ function citationLabel(citation) {
 }
 
 function courseModeLabel(course) {
-  if (course?.ai?.enabled) return `AI · ${course.ai.generatorModel} + ${course.ai.criticModel}`;
+  if (course?.ai?.enabled) return `LIVE AI · ${course.ai.generatorModel}`;
   return "LOCAL FALLBACK";
 }
 
@@ -283,7 +283,8 @@ function setPipelineStage(stage, status, label = status) {
 }
 
 function resetPipeline() {
-  for (const stage of ["cartographer", "scholar", "examiner", "critic"]) setPipelineStage(stage, "waiting", "waiting");
+  setPipelineStage("course-ai", "waiting", "waiting");
+  setPipelineStage("validator", "waiting", "waiting");
   setPipelineStage("memory", "ready", "ready");
 }
 
@@ -298,28 +299,28 @@ async function animateCompilation({ ai = false } = {}) {
 
 async function compileHybrid({ text, sourceName, sources }) {
   resetPipeline();
+  setPipelineStage("course-ai", "working", "calling model");
   if (elements.aiModePill) elements.aiModePill.textContent = "AI COMPILING…";
+
   try {
-    const course = await compileCourseWithAI({
-      text,
-      sourceName,
-      sources,
-      onStage(stage, status) {
-        setPipelineStage(stage, status === "started" ? "working" : "complete", status === "started" ? "calling model" : "complete");
-      },
-    });
+    const course = await compileCourseWithAI({ text, sourceName, sources });
+    setPipelineStage("course-ai", "complete", "complete");
+    setPipelineStage("validator", "complete", "checked");
     setPipelineStage("memory", "complete", "persisted");
     if (elements.aiModePill) elements.aiModePill.textContent = "LIVE AI";
     return { course, mode: "ai" };
   } catch (error) {
-    const failedStage = error?.stage || "live compiler";
     const code = error?.code || "COMPILE_FAILED";
-    console.warn(`AI compiler failed at ${failedStage} (${code}); using local fallback.`, error);
-    if (error?.stage) setPipelineStage(error.stage, "error", `failed · ${code}`);
+    console.warn(`AI compiler failed (${code}); using local fallback.`, error);
+    setPipelineStage("course-ai", "error", `failed · ${code}`);
     const course = compileCourseFromText({ text, sourceName });
-    course.ai = { ...(course.ai ?? {}), enabled: false, fallbackReason: `${failedStage}: ${code}` };
-    course.trace.unshift({ stage: "Fallback", action: `Live AI failed at ${failedStage} (${code}). Used deterministic local compiler instead.`, status: "fallback" });
-    if (elements.aiModePill) elements.aiModePill.textContent = `LOCAL FALLBACK · ${failedStage.toUpperCase()}`;
+    course.ai = { ...(course.ai ?? {}), enabled: false, fallbackReason: code };
+    course.trace.unshift({
+      stage: "Fallback",
+      action: `Live AI failed (${code}). Used deterministic local compiler instead.`,
+      status: "fallback",
+    });
+    if (elements.aiModePill) elements.aiModePill.textContent = "LOCAL FALLBACK";
     return { course, mode: "local", error };
   }
 }
@@ -450,7 +451,7 @@ function renderCourseAgent() {
   elements.compiledCourseTitle.textContent = course.title;
   elements.compiledSourceCount.textContent = String(courseState.sources.length || 1);
   elements.compiledConceptCount.textContent = String(course.concepts.length);
-  elements.courseSummaryCopy.textContent = `${course.concepts.length} concepts, ${course.claims.length} source-grounded review claims, and ${course.prompts.length} retrieval prompts are ready. ${course.ai?.enabled ? `The Critic independently checked generation with ${course.ai.criticModel}.` : "Local fallback items still need human verification."}`;
+  elements.courseSummaryCopy.textContent = `${course.concepts.length} concepts, ${course.claims.length} source-grounded review claims, and ${course.prompts.length} retrieval prompts are ready. ${course.ai?.enabled ? `One ${course.ai.generatorModel} pass built the study set, then ProjLearn checked the quoted evidence against your source.` : "Local fallback items still need human verification."}`;
   elements.graphStatus.textContent = `${course.edges.length} links`;
   elements.conceptGraphEmpty.hidden = true;
   elements.conceptGraph.hidden = false;

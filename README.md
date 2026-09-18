@@ -60,6 +60,21 @@ The live path now uses one provider call per compilation to reduce latency and t
 5. Without live AI, compilation stays local in the browser.
 
 
+## Core product loop
+
+This is the main ProjLearn experience:
+
+1. **Bring a source** — a paper, chapter, notes, or extracted webpage/article text.
+2. **Read the AI summary first** — ProjLearn produces a concise overview, key points, and study-focus items before practice.
+3. **Retrieve from memory** — answer source-grounded questions without looking back.
+4. **Grade meaning, not wording** — semantic grading accepts equivalent phrasing, notation, and numerical/verbal forms.
+5. **Remember weakness** — a partial or incorrect answer automatically marks that concept for review in browser-local memory.
+6. **Remix the review** — ProjLearn prepares a fresh question on the same weak concept rather than endlessly repeating the exact old prompt.
+7. **Return where you struggled** — after a reload or later visit, remembered weak concepts are prioritized before unseen/easier prompts.
+8. **Clear the weakness by recalling it** — a correct answer removes the concept from immediate review; another miss creates another remix.
+
+The Course Coach supports this loop, but it is secondary to summary → retrieval → memory → remixed review.
+
 ## Semantic answer grading and course coach
 
 Retrieval answers are no longer judged by exact string matching. The browser sends the learner's answer, the source-backed expected answer, the question, and its evidence to a small server-side semantic grader. It evaluates **meaning rather than wording**, so equivalent forms such as `0` and `zero`, notation differences, or paraphrases can still be marked correct. The grader returns `correct`, `partial`, or `incorrect` with a short explanation. If the grader is unavailable, ProjLearn falls back to the local lexical check rather than blocking practice.
@@ -77,7 +92,7 @@ ProjLearn can also run as a native Streamlit app from this same repository.
 - Add `OPENAI_API_KEY` under the Streamlit app's **Secrets**. Do not commit the key to GitHub.
 - Optional: set `PROJLEARN_MODEL` as an environment variable; otherwise the Streamlit app uses `gpt-5.6-luna`.
 
-The Streamlit version supports PDF/TXT/Markdown upload, the same single-pass course compiler, deterministic source-quote validation, concepts/evidence views, semantic AI answer grading with local fallback, and a source-grounded course coach.
+The Streamlit version supports PDF/TXT/Markdown upload, the same summary-first single-pass course compiler, deterministic source-quote validation, concepts/evidence views, semantic AI answer grading with local fallback, a missed-review queue for the active session, and a source-grounded course coach. The Netlify build remains the fuller browser-persistent Memory Engine demo.
 
 ## TAPIA demo path
 

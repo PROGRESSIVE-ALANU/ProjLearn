@@ -544,6 +544,22 @@ async function recordPromptResult(promptId, result) {
 
   if (result === "missed") {
     const concept = courseState.course?.concepts?.find((item) => item.id === basePrompt.conceptId);
+    const immediateFallback = {
+      prompt: `Try this again from a different angle: explain ${concept?.title || "this concept"} in your own words and connect it to the source.`,
+      expectedAnswer: basePrompt.expectedAnswer,
+      difficulty: "explain",
+      evidence: basePrompt.evidence || basePrompt.citation?.quote || "",
+      citation: basePrompt.citation,
+      generatedAt: Date.now(),
+      generation: nextMisses,
+      fallback: true,
+    };
+    courseState.promptMemory[promptId] = {
+      ...promptState(promptId),
+      needsReview: true,
+      reviewVariant: immediateFallback,
+    };
+    persistCourseState();
     showToast("Miss saved. Preparing a fresh review question…");
 
     try {

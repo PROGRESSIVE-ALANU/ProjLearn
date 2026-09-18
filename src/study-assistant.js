@@ -28,6 +28,18 @@ export async function gradeAnswerWithAI({ question, expectedAnswer, userAnswer, 
   return data.grade;
 }
 
+export async function remixMissedQuestion({ conceptTitle, originalPrompt, expectedAnswer, evidence, missCount }) {
+  const data = await postAssistant({
+    mode: 'remix',
+    conceptTitle,
+    originalPrompt,
+    expectedAnswer,
+    evidence,
+    missCount,
+  });
+  return data.remix;
+}
+
 export async function askCourseCoach({ message, context, history = [] }) {
   const data = await postAssistant({
     mode: 'chat',

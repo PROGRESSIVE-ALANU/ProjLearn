@@ -111,6 +111,16 @@ const compilerSchema = {
   additionalProperties: false,
   properties: {
     title: { type: 'string' },
+    summary: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        overview: { type: 'string' },
+        keyPoints: { type: 'array', minItems: 3, maxItems: 7, items: { type: 'string' } },
+        studyFocus: { type: 'array', minItems: 2, maxItems: 5, items: { type: 'string' } },
+      },
+      required: ['overview', 'keyPoints', 'studyFocus'],
+    },
     concepts: {
       type: 'array',
       minItems: 4,
@@ -162,7 +172,7 @@ const compilerSchema = {
       },
     },
   },
-  required: ['title', 'concepts', 'claims', 'prompts'],
+  required: ['title', 'summary', 'concepts', 'claims', 'prompts'],
 };
 
 function normalized(value = '') {
@@ -198,7 +208,7 @@ export async function handler(event) {
 
     const compiled = await callStructured({
       schema: compilerSchema,
-      instructions: `You are ProjLearn's single source-grounded course compiler. Read ONLY the supplied course material. In one pass: identify the most teachable concepts and prerequisite relationships, attach concise evidence to each concept, produce review claims, and write retrieval-practice prompts. Do not use outside knowledge. Every citation quote must be a short exact excerpt copied from the supplied source. Use [Page N] markers for page when available, otherwise null. prerequisiteTitles may name only concepts you return. Keep expected answers concise and directly supported by the source. Do not invent facts to make the source seem complete.`,
+      instructions: `You are ProjLearn's single source-grounded course compiler. Read ONLY the supplied course material. In one pass: first create a concise learner-facing summary with an overview, key points, and study-focus items; then identify the most teachable concepts and prerequisite relationships, attach concise evidence to each concept, produce review claims, and write retrieval-practice prompts. Do not use outside knowledge. Every citation quote must be a short exact excerpt copied from the supplied source. Use [Page N] markers for page when available, otherwise null. prerequisiteTitles may name only concepts you return. Keep expected answers concise and directly supported by the source. Do not invent facts to make the source seem complete.`,
       input: `SOURCE NAME: ${sourceName}\n\nSOURCE:\n${text}`,
     });
 
@@ -265,6 +275,7 @@ export async function handler(event) {
 
     const course = {
       title: compiled.title || sourceName,
+      summary: compiled.summary,
       sourceName,
       charCount: text.length,
       concepts,
@@ -274,7 +285,7 @@ export async function handler(event) {
       trace: [
         {
           stage: 'Course AI',
-          action: `One ${DEFAULT_MODEL} call extracted ${concepts.length} concepts, ${claims.length} review claims, and ${prompts.length} practice prompts.`,
+          action: `One ${DEFAULT_MODEL} call summarized the source, extracted ${concepts.length} concepts, ${claims.length} review claims, and ${prompts.length} practice prompts.`,
           status: 'complete',
         },
         {

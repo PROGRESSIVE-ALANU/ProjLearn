@@ -40,7 +40,6 @@ Deploy the repository to Netlify and add these environment variables in the Netl
 ```text
 OPENAI_API_KEY=<your server-side API key>
 PROJLEARN_MODEL=gpt-5.6-luna
-PROJLEARN_CRITIC_MODEL=gpt-5.6-terra
 PROJLEARN_MAX_SOURCE_CHARS=180000
 ```
 
@@ -48,9 +47,9 @@ PROJLEARN_MAX_SOURCE_CHARS=180000
 
 The included `netlify.toml` builds an allowlisted `dist/` directory and configures Functions separately. Environment files and server source are excluded from the static output. Set the API key for the Functions scope and Production context using Netlify’s dashboard, then redeploy. Do not paste the key into chat.
 
-Local validation: `node --test tests/compile-course.test.mjs` and `node scripts/build.mjs`. Mocked tests do not prove live model access; verify the deployed UI says **LIVE AI**, not **LOCAL FALLBACK**, before presenting the live-agent demo.
+Local validation: `node --test tests/compile-course.test.mjs` and `node scripts/build.mjs`. Mocked tests do not prove live model access; verify the deployed UI says **LIVE AI**, not **LOCAL FALLBACK**, before presenting the live AI demo.
 
-The four sequential provider calls still need a live latency check against the target Netlify account’s function timeout.
+The live path now uses one provider call per compilation to reduce latency and timeout risk.
 
 ## Source/privacy behavior
 
@@ -63,7 +62,7 @@ The four sequential provider calls still need a live latency check against the t
 ## TAPIA demo path
 
 1. Load a course source or choose **Load TAPIA demo**.
-2. Show Cartographer → Scholar → Examiner → Critic → Memory Engine.
+2. Show Course AI → Source Validator → Memory Engine.
 3. Open a retrieval prompt and reveal its source evidence.
 4. Mark one prompt missed.
 5. Reload the page: the missed prompt returns first.
@@ -73,7 +72,7 @@ The four sequential provider calls still need a live latency check against the t
 
 ## Current limitations / next milestone
 
-- The agent pipeline currently returns after all four server-side calls complete; streaming per-stage progress is the next UX improvement.
+- The compiler now uses a single structured AI call; future work can add chunking for very large course packs.
 - Course prompt memory is persistent but not yet full FSRS. Next version adds stability/difficulty/retrievability fields.
 - Browser-local state is enough for the hackathon restart demo; Supabase sync can come later if cross-device persistence is needed.
 - We still need a real human-caught error from testing; do not fabricate one for the judges.
@@ -91,7 +90,7 @@ Design references: [Readwise Reader](https://readwise.io/read) for a reading-foc
 - URL: https://projlearn-tapia.netlify.app (last verified visibility: private).
 - Build: `node scripts/build.mjs`, publish directory `dist`, functions directory `netlify/functions`.
 - API key is a Netlify secret in Production only; it is never written to this repository.
-- Generator `gpt-5.6-luna`, critic `gpt-5.6-terra`, source limit `180000`.
+- Single compiler model `gpt-5.6-luna`; server-side source cap is 90,000 characters for the live call.
 - Deployed fallback compilation and missed-prompt persistence passed. First live request returned sanitized `COMPILE_FAILED` after approximately 20 seconds; live AI has **not** passed end-to-end verification.
 - Safe per-stage diagnostics were added after that failure. Inspect the function logs and retest a sample chapter before claiming a working live AI pipeline.
 - Local DOM interaction checks passed for routing, notebook tabs, fallback compilation, missed-prompt memory, inline correction persistence and claim propagation, theme switching, and adaptive-session opening/closing. Updated visual layout still requires live browser review.

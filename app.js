@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918g";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918h";
 import {
   buildSession,
   calculateMastery,
@@ -6,10 +6,10 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918g";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918g";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918g";
-import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918g";
+} from "./src/engine.js?v=20260918h";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918h";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918h";
+import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918h";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -109,7 +109,9 @@ const elements = {
   sourceQuizConcept: document.querySelector("#source-quiz-concept"),
   sourceQuizPriority: document.querySelector("#source-quiz-priority"),
   sourceQuizQuestion: document.querySelector("#source-quiz-question"),
+  typedAnswerLabel: document.querySelector("#typed-answer-label"),
   typedAnswer: document.querySelector("#typed-answer"),
+  mcqOptions: document.querySelector("#mcq-options"),
   checkTypedAnswer: document.querySelector("#check-typed-answer"),
   answerFeedback: document.querySelector("#answer-feedback"),
   revealSource: document.querySelector("#reveal-source"),
@@ -498,7 +500,16 @@ function renderSourceQuiz() {
   elements.sourceQuizPriority.textContent = state.needsReview ? (prompt.isRemix ? "REMIXED REVIEW" : "MISSED — REVIEW NOW") : state.attempts ? "RETURN" : "NEW";
   elements.sourceQuizPriority.classList.toggle("is-missed", state.needsReview);
   elements.sourceQuizQuestion.textContent = prompt.prompt;
+  const isMcq = prompt.questionType === "multiple_choice" && Array.isArray(prompt.choices) && prompt.choices.length === 4 && Number.isInteger(prompt.correctChoiceIndex);
+  elements.typedAnswerLabel.hidden = isMcq;
+  elements.typedAnswer.hidden = isMcq;
+  elements.checkTypedAnswer.hidden = isMcq;
+  elements.mcqOptions.hidden = !isMcq;
   elements.typedAnswer.value = "";
+  elements.mcqOptions.innerHTML = isMcq
+    ? prompt.choices.map((choice, index) => `<button class="mcq-option" type="button" data-choice-index="${index}"><span>${String.fromCharCode(65 + index)}</span><strong>${escapeHtml(choice)}</strong></button>`).join("")
+    : "";
+  elements.mcqOptions.dataset.promptId = basePrompt.id;
   elements.answerFeedback.hidden = true;
   elements.answerFeedback.textContent = "";
   elements.answerFeedback.dataset.verdict = "";
@@ -932,6 +943,33 @@ elements.submitAnswer.addEventListener("click", submitCurrentAnswer);
 elements.nextQuestion.addEventListener("click", advanceQuestion);
 elements.finishSession.addEventListener("click", () => closeSession({ completed: true }));
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+elements.mcqOptions.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-choice-index]");
+  if (!button || button.disabled) return;
+
+  const promptId = elements.mcqOptions.dataset.promptId;
+  const basePrompt = courseState.course?.prompts?.find((item) => item.id === promptId);
+  const prompt = activeCoursePrompt(basePrompt);
+  if (!prompt || prompt.questionType !== "multiple_choice") return;
+
+  const selected = Number(button.dataset.choiceIndex);
+  const correct = selected === prompt.correctChoiceIndex;
+  for (const option of elements.mcqOptions.querySelectorAll("[data-choice-index]")) {
+    option.disabled = true;
+    const index = Number(option.dataset.choiceIndex);
+    option.classList.toggle("is-correct", index === prompt.correctChoiceIndex);
+    option.classList.toggle("is-wrong", index === selected && !correct);
+  }
+
+  elements.answerFeedback.hidden = false;
+  elements.answerFeedback.dataset.verdict = correct ? "correct" : "incorrect";
+  elements.answerFeedback.textContent = correct
+    ? "Correct. Cleared from immediate review."
+    : `Not quite. The correct answer is ${String.fromCharCode(65 + prompt.correctChoiceIndex)}. Saved to your review memory.`;
+  elements.selfCheckActions.hidden = false;
+  await recordPromptResult(promptId, correct ? "knew" : "missed", { render: false, notify: false });
+});
+
 elements.checkTypedAnswer.addEventListener("click", async () => {
   const promptId = elements.checkTypedAnswer.dataset.promptId;
   const basePrompt = courseState.course?.prompts?.find((item) => item.id === promptId);

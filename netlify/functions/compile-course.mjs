@@ -165,10 +165,13 @@ const compilerSchema = {
           conceptTitle: { type: 'string' },
           prompt: { type: 'string' },
           expectedAnswer: { type: 'string' },
+          questionType: { type: 'string', enum: ['free_response', 'multiple_choice'] },
+          choices: { type: 'array', minItems: 0, maxItems: 4, items: { type: 'string' } },
+          correctChoiceIndex: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
           citation: citationSchema,
           difficulty: { type: 'string', enum: ['recall', 'explain', 'apply', 'compare'] },
         },
-        required: ['conceptTitle', 'prompt', 'expectedAnswer', 'citation', 'difficulty'],
+        required: ['conceptTitle', 'prompt', 'expectedAnswer', 'questionType', 'choices', 'correctChoiceIndex', 'citation', 'difficulty'],
       },
     },
   },
@@ -208,7 +211,7 @@ export async function handler(event) {
 
     const compiled = await callStructured({
       schema: compilerSchema,
-      instructions: `You are ProjLearn's single source-grounded course compiler. Read ONLY the supplied course material. In one pass: first create a concise learner-facing summary with an overview, key points, and study-focus items; then identify the most teachable concepts and prerequisite relationships, attach concise evidence to each concept, produce review claims, and write retrieval-practice prompts. Do not use outside knowledge. Every citation quote must be a short exact excerpt copied from the supplied source. Use [Page N] markers for page when available, otherwise null. prerequisiteTitles may name only concepts you return. Keep expected answers concise and directly supported by the source. Do not invent facts to make the source seem complete.`,
+      instructions: `You are ProjLearn's single source-grounded course compiler. Read ONLY the supplied course material. In one pass: first create a concise learner-facing summary with an overview, key points, and study-focus items; then identify the most teachable concepts and prerequisite relationships, attach concise evidence to each concept, produce review claims, and write retrieval-practice prompts. Do not use outside knowledge. Every citation quote must be a short exact excerpt copied from the supplied source. Use [Page N] markers for page when available, otherwise null. prerequisiteTitles may name only concepts you return. Keep expected answers concise and directly supported by the source. Mix question formats: roughly half should be multiple_choice and the rest free_response when the material supports it. For multiple_choice, return exactly four plausible choices and a correctChoiceIndex from 0 to 3; distractors must be reasonable but contradicted or unsupported by the source. For free_response, return choices as [] and correctChoiceIndex as null. Do not invent facts to make the source seem complete.`,
       input: `SOURCE NAME: ${sourceName}\n\nSOURCE:\n${text}`,
     });
 
@@ -255,6 +258,9 @@ export async function handler(event) {
         conceptId: slugify(prompt.conceptTitle),
         prompt: prompt.prompt,
         expectedAnswer: prompt.expectedAnswer,
+        questionType: prompt.questionType,
+        choices: prompt.questionType === 'multiple_choice' && prompt.choices.length === 4 ? prompt.choices : [],
+        correctChoiceIndex: prompt.questionType === 'multiple_choice' && Number.isInteger(prompt.correctChoiceIndex) ? prompt.correctChoiceIndex : null,
         evidence: prompt.citation.quote,
         citation: prompt.citation,
         difficulty: prompt.difficulty,

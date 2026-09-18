@@ -47,6 +47,17 @@ async function callOpenAI(body) {
   return payload;
 }
 
+const remixSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    prompt: { type: 'string' },
+    expectedAnswer: { type: 'string' },
+    difficulty: { type: 'string', enum: ['recall', 'explain', 'apply', 'compare'] },
+  },
+  required: ['prompt', 'expectedAnswer', 'difficulty'],
+};
+
 const gradeSchema = {
   type: 'object',
   additionalProperties: false,
@@ -88,6 +99,37 @@ async function gradeAnswer(body) {
   return json(200, { grade: JSON.parse(extractText(response)), model: MODEL });
 }
 
+async function remix(body) {
+  const conceptTitle = String(body.conceptTitle || '').slice(0, 500);
+  const originalPrompt = String(body.originalPrompt || '').slice(0, 3000);
+  const expectedAnswer = String(body.expectedAnswer || '').slice(0, 5000);
+  const evidence = String(body.evidence || '').slice(0, 5000);
+  const missCount = Math.max(1, Math.min(Number(body.missCount || 1), 20));
+
+  if (!conceptTitle || !expectedAnswer) {
+    return json(400, { error: 'Concept and expected answer are required.', code: 'INVALID_INPUT' });
+  }
+
+  const response = await callOpenAI({
+    model: MODEL,
+    store: false,
+    max_output_tokens: 700,
+    reasoning: { effort: 'low' },
+    instructions: `You are ProjLearn's review-question remixer. The learner missed this concept before. Write ONE fresh retrieval question that tests the same underlying idea without copying the original wording. Stay strictly grounded in the supplied expected answer and source evidence. As miss count rises, you may move from recall toward explanation, application, or comparison, but do not introduce facts absent from the evidence. The expectedAnswer must remain concise and source-supported.`,
+    input: `CONCEPT: ${conceptTitle}\nMISS COUNT: ${missCount}\n\nORIGINAL QUESTION:\n${originalPrompt}\n\nSOURCE-BACKED ANSWER:\n${expectedAnswer}\n\nSOURCE EVIDENCE:\n${evidence || '(none supplied)'}`,
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'projlearn_review_remix',
+        strict: true,
+        schema: remixSchema,
+      },
+    },
+  });
+
+  return json(200, { remix: JSON.parse(extractText(response)), model: MODEL });
+}
+
 async function chat(body) {
   const message = String(body.message || '').trim().slice(0, 5000);
   const context = String(body.context || '').slice(0, 30000);
@@ -121,6 +163,7 @@ export async function handler(event) {
     catch { return json(400, { error: 'Invalid JSON request.', code: 'INVALID_INPUT' }); }
 
     if (body.mode === 'grade') return await gradeAnswer(body);
+    if (body.mode === 'remix') return await remix(body);
     if (body.mode === 'chat') return await chat(body);
     return json(400, { error: 'Unknown study assistant mode.', code: 'INVALID_MODE' });
   } catch (error) {

@@ -54,7 +54,11 @@ PROJLEARN_MAX_SOURCE_CHARS=180000
 
 `OPENAI_API_KEY` must stay in Netlify environment variables. **Never put it in `app.js`, HTML, GitHub, or client-side localStorage.**
 
-The included `netlify.toml` configures the static publish directory and Functions directory.
+The included `netlify.toml` builds an allowlisted `dist/` directory and configures Functions separately. Environment files and server source are excluded from the static output. Set the API key for the Functions scope and Production context using Netlify’s dashboard, then redeploy. Do not paste the key into chat.
+
+Local validation: `node --test tests/compile-course.test.mjs` and `node scripts/build.mjs`. Mocked tests do not prove live model access; verify the deployed UI says **LIVE AI**, not **LOCAL FALLBACK**, before presenting the live-agent demo.
+
+The four sequential provider calls still need a live latency check against the target Netlify account’s function timeout.
 
 ## Source/privacy behavior
 

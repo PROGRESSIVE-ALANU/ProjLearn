@@ -3,3 +3,5 @@
 !.env.example
 .netlify/
 .DS_Store
+dist/
+node_modules/

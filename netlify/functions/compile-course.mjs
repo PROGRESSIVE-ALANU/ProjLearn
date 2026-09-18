@@ -1,7 +1,9 @@
 const OPENAI_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = process.env.PROJLEARN_MODEL || 'gpt-5.6-luna';
 const CRITIC_MODEL = process.env.PROJLEARN_CRITIC_MODEL || 'gpt-5.6-terra';
-const MAX_SOURCE_CHARS = Number(process.env.PROJLEARN_MAX_SOURCE_CHARS || 180000);
+const configuredLimit = Number(process.env.PROJLEARN_MAX_SOURCE_CHARS || 180000);
+const MAX_SOURCE_CHARS = Number.isFinite(configuredLimit) && configuredLimit >= 200
+  ? Math.min(Math.floor(configuredLimit), 180000) : 180000;
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -46,12 +48,15 @@ async function callStructured({ model, instructions, input, schema, schemaName, 
 
   const response = await fetch(OPENAI_URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(45000),
     headers: {
       authorization: `Bearer ${apiKey}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
       model,
+      store: false,
+      max_output_tokens: 10000,
       reasoning: { effort },
       instructions,
       input,
@@ -200,7 +205,15 @@ export async function handler(event) {
   if (!process.env.OPENAI_API_KEY) return json(501, { error: 'AI compiler is not configured yet.', code: 'NO_API_KEY' });
 
   try {
-    const body = JSON.parse(event.body || '{}');
+    let body;
+    try { body = JSON.parse(event.body || '{}'); }
+    catch { return json(400, { error: 'Invalid JSON request.', code: 'INVALID_INPUT' }); }
+    if (!body || typeof body.text !== 'string') {
+      return json(400, { error: 'Source text must be a string.', code: 'INVALID_INPUT' });
+    }
+    if (body.text.length > 1000000) {
+      return json(413, { error: 'Source is too large. Upload a shorter excerpt.', code: 'SOURCE_TOO_LARGE' });
+    }
     const text = sourceForModel(body.text || '');
     const sourceName = String(body.sourceName || 'Course material').slice(0, 180);
     if (text.length < 200) return json(400, { error: 'Not enough readable source text to compile.' });
@@ -326,7 +339,10 @@ export async function handler(event) {
 
     return json(200, { course });
   } catch (error) {
-    console.error('ProjLearn compile failure', error);
-    return json(500, { error: error?.message || 'AI compilation failed.', code: error?.code || 'COMPILE_FAILED' });
+    // Provider errors can contain credential fragments: never return or log raw messages.
+    const knownCodes = new Set(['invalid_api_key', 'insufficient_quota', 'rate_limit_exceeded', 'model_not_found', 'NO_API_KEY']);
+    const code = knownCodes.has(error?.code) ? error.code : 'COMPILE_FAILED';
+    console.error('ProjLearn compile failure', { code });
+    return json(502, { error: 'Live AI compilation failed. Check the server configuration or try again.', code });
   }
 }

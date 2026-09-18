@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ProjLearn turns course material into a persistent, source-grounded study agent with adaptive review and human verification." />
+    <meta name="theme-color" content="#f3f0e7" />
+    <meta property="og:title" content="ProjLearn — Compile a course into a tutor" />
+    <meta property="og:description" content="Upload a syllabus or chapter. Build a concept map. Study the next weak thing. Verify the agent against the source." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/assets/l8-social.png" />
+    <link rel="icon" href="/assets/l8-mark.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>ProjLearn — Course-to-Agent Learning</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="ProjLearn home">
+        <span class="brand-mark brand-mark-wide" aria-hidden="true">PL</span>
+        <span class="brand-copy">
+          <strong>ProjLearn</strong>
+          <small>course-to-agent learning</small>
+        </span>
+      </a>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="#compiler">Compile</a>
+        <a href="#course-agent">Course agent</a>
+        <a href="#adaptive">Adaptive review</a>
+      </nav>
+
+      <button class="utility-button" id="theme-toggle" type="button" aria-label="Switch to dark theme">
+        <span aria-hidden="true">◐</span>
+      </button>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="status-dot"></span> TAPIA 2026 · Course Study Companion</p>
+          <h1 id="hero-title">
+            Don’t upload a chapter.
+            <em>Compile a course agent.</em>
+          </h1>
+          <p class="hero-intro">
+            ProjLearn turns a syllabus, textbook chapter, or paper into a source-grounded learning workspace:
+            a concept map, critical review sheet, adaptive quiz loop, persistent memory, and a human-verification trail.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#compiler">
+              Build a Course Agent
+              <span aria-hidden="true">↗</span>
+            </a>
+            <button class="button button-secondary" id="start-loop" type="button">Try the L8 adaptive loop</button>
+          </div>
+          <ul class="trust-list" aria-label="Product principles">
+            <li>Source-grounded</li>
+            <li>Human checked</li>
+            <li>Memory survives reloads</li>
+          </ul>
+        </div>
+
+        <aside class="loop-preview course-preview" aria-label="Course agent preview">
+          <div class="preview-topline">
+            <span>COURSE AGENT</span>
+            <span id="preview-date">TODAY</span>
+          </div>
+          <div class="compiler-orbit" aria-hidden="true">
+            <div class="compiler-core">SOURCE</div>
+            <span class="compiler-node node-a">MAP</span>
+            <span class="compiler-node node-b">QUIZ</span>
+            <span class="compiler-node node-c">VERIFY</span>
+            <span class="compiler-node node-d">MEMORY</span>
+          </div>
+          <div class="preview-focus">
+            <div>
+              <span class="label">NEXT BEST ACTION</span>
+              <strong id="preview-focus-title">Pointer ownership</strong>
+            </div>
+            <span class="risk-badge">adaptive</span>
+          </div>
+          <div class="preview-meter"><span style="--fill: 38%"></span></div>
+          <div class="preview-footer">
+            <span>5 specialist stages</span>
+            <span>source citations</span>
+            <span>human override</span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="compiler-section" id="compiler" aria-labelledby="compiler-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">01 · COURSE COMPILER</p>
+            <h2 id="compiler-title">Give ProjLearn the material you actually have to learn.</h2>
+          </div>
+          <p>
+            ProjLearn parses text, Markdown, and PDFs in your browser. With the AI backend enabled, the extracted text—not the original file—is sent securely through a Netlify Function to the model API; without a key, ProjLearn uses its local fallback compiler.
+          </p>
+        </div>
+
+        <div class="compiler-grid">
+          <article class="upload-card">
+            <div class="upload-icon" aria-hidden="true">↥</div>
+            <p class="label">SOURCE MATERIAL</p>
+            <h3>Drop a syllabus, chapter, or paper.</h3>
+            <p>PDF, TXT, or Markdown. Add more than one file to combine a syllabus with course material.</p>
+            <label class="upload-zone" for="course-files" id="upload-zone">
+              <input id="course-files" type="file" accept=".pdf,.txt,.md,text/plain,application/pdf" multiple />
+              <strong>Choose files</strong>
+              <span>or drag them here</span>
+            </label>
+            <div class="source-list" id="source-list" aria-live="polite"></div>
+            <div class="compiler-actions">
+              <button class="button button-primary" id="compile-course" type="button" disabled>Compile Course Agent</button>
+              <button class="button button-secondary" id="load-demo-course" type="button">Load TAPIA demo</button>
+            </div>
+            <p class="compiler-note" id="compiler-note">Nothing has been uploaded yet.</p>
+          </article>
+
+          <article class="agent-pipeline-card" aria-labelledby="pipeline-title">
+            <div class="panel-heading compact-heading">
+              <div>
+                <p class="label">MULTI-PHASE PIPELINE</p>
+                <h3 id="pipeline-title">Visible reasoning without pretending one model is infallible.</h3>
+              </div>
+              <span class="score-pill" id="ai-mode-pill">AI-READY V0.2</span>
+            </div>
+            <ol class="pipeline-list" id="pipeline-list">
+              <li data-stage="cartographer"><span>01</span><div><strong>Cartographer</strong><small>concepts + prerequisites</small></div><b>waiting</b></li>
+              <li data-stage="scholar"><span>02</span><div><strong>Scholar</strong><small>source evidence + review sheet</small></div><b>waiting</b></li>
+              <li data-stage="examiner"><span>03</span><div><strong>Examiner</strong><small>retrieval prompts</small></div><b>waiting</b></li>
+              <li data-stage="critic"><span>04</span><div><strong>Critic</strong><small>support check + uncertainty</small></div><b>waiting</b></li>
+              <li data-stage="memory"><span>05</span><div><strong>Memory Engine</strong><small>mastery + due reviews</small></div><b>ready</b></li>
+            </ol>
+            <p class="pipeline-disclaimer">
+              PDF/text extraction happens in your browser. When the Netlify AI backend is configured, extracted text is sent to the model API for four independent specialist stages; otherwise ProjLearn falls back to the local compiler so the demo still works.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="course-agent-section" id="course-agent" aria-labelledby="course-agent-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">02 · COMPILED COURSE AGENT</p>
+            <h2 id="course-agent-title">The source becomes a map, not a chat transcript.</h2>
+          </div>
+          <p id="course-summary-copy">Compile a source above to populate this workspace.</p>
+        </div>
+
+        <div class="course-status-bar">
+          <div><span>COURSE</span><strong id="compiled-course-title">No course compiled</strong></div>
+          <div><span>SOURCES</span><strong id="compiled-source-count">0</strong></div>
+          <div><span>CONCEPTS</span><strong id="compiled-concept-count">0</strong></div>
+          <div><span>HUMAN CHECKS</span><strong id="human-check-count">0</strong></div>
+        </div>
+
+        <div class="course-agent-grid">
+          <article class="panel graph-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">CONCEPT GRAPH</p>
+                <h3>What depends on what?</h3>
+              </div>
+              <span class="queue-count" id="graph-status">waiting</span>
+            </div>
+            <div class="concept-graph-empty" id="concept-graph-empty">
+              <strong>Compile a course to build the graph.</strong>
+              <span>ProjLearn will extract candidate concepts and connect them in source order for this prototype.</span>
+            </div>
+            <div class="concept-graph" id="concept-graph" hidden></div>
+          </article>
+
+          <article class="panel review-sheet-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">CRITICAL REVIEW</p>
+                <h3>Claims worth retrieving.</h3>
+              </div>
+              <span class="queue-count" id="review-sheet-count">0 claims</span>
+            </div>
+            <div class="review-sheet" id="review-sheet">
+              <p class="empty-copy">Source-backed review claims will appear here.</p>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel course-quiz-panel" id="source-quiz">
+          <div class="panel-heading">
+            <div>
+              <p class="label">SOURCE-CHECKED RETRIEVAL</p>
+              <h3>Answer first. Reveal the source second.</h3>
+            </div>
+            <span class="score-pill" id="source-quiz-status">0 attempted</span>
+          </div>
+          <div class="source-quiz-empty" id="source-quiz-empty">
+            <strong>Compile a course to generate retrieval prompts.</strong>
+            <span>The local prototype uses teach-back questions so a human can check the answer directly against source evidence.</span>
+          </div>
+          <div class="source-quiz-body" id="source-quiz-body" hidden>
+            <div class="quiz-meta"><span id="source-quiz-concept">CONCEPT</span><b id="source-quiz-priority">NEW</b></div>
+            <h4 id="source-quiz-question">Question</h4>
+            <p class="quiz-instruction">Say or write your answer before opening the evidence.</p>
+            <button class="button button-secondary" id="reveal-source" type="button">Reveal source evidence</button>
+            <blockquote class="source-evidence" id="source-evidence" hidden></blockquote>
+            <div class="self-check-actions" id="self-check-actions" hidden>
+              <button class="button button-primary" id="mark-knew" type="button">I had it</button>
+              <button class="button button-secondary" id="mark-missed" type="button">I missed it</button>
+              <button class="text-button flag-agent-button" id="flag-agent" type="button">Agent/source mismatch? Flag it →</button>
+            </div>
+          </div>
+        </article>
+
+        <div class="course-agent-grid lower-grid">
+          <article class="panel verification-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">HUMAN CHECKPOINT</p>
+                <h3>The agent can be corrected.</h3>
+              </div>
+              <span class="score-pill verification-pill">0 overrides</span>
+            </div>
+            <div class="verification-empty" id="verification-empty">
+              <span class="verification-icon">✓</span>
+              <div>
+                <strong>No corrections yet.</strong>
+                <p>During testing, a teammate can mark a generated item as unsupported and attach the source evidence that fixes it.</p>
+              </div>
+            </div>
+            <div class="verification-log" id="verification-log"></div>
+          </article>
+
+          <article class="panel trace-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">AGENT TRACE</p>
+                <h3>What happened to your source?</h3>
+              </div>
+              <span class="queue-count" id="trace-count">0 events</span>
+            </div>
+            <div class="trace-list" id="trace-list">
+              <p class="empty-copy">The compilation trace will appear here.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="product-shell" id="adaptive" aria-labelledby="workspace-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">03 · ADAPTIVE MEMORY · POWERED BY L8</p>
+            <h2 id="workspace-title">The part we already know works: remember the weak thing.</h2>
+          </div>
+          <p>
+            This is the recovered L8 engine: correctness, confidence, mastery, and review timing persist in your browser and survive a full reload.
+          </p>
+        </div>
+
+        <div class="track-grid" id="track-grid" role="group" aria-label="Available demo study tracks"></div>
+
+        <div class="dashboard-grid">
+          <article class="panel mastery-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">MASTERY MAP</p>
+                <h3>What deserves your next eight minutes?</h3>
+              </div>
+              <span class="score-pill" id="mastery-score">0% READY</span>
+            </div>
+            <div class="mastery-list" id="mastery-list"></div>
+          </article>
+
+          <article class="panel queue-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">REVIEW QUEUE</p>
+                <h3>Misses that are coming back.</h3>
+              </div>
+              <span class="queue-count" id="queue-count">0 due</span>
+            </div>
+            <div class="review-queue" id="review-queue"></div>
+            <button class="text-button" id="review-now" type="button">
+              Review due concepts <span aria-hidden="true">→</span>
+            </button>
+          </article>
+        </div>
+      </section>
+
+      <section class="engine-section" aria-labelledby="engine-title">
+        <div class="section-heading section-heading-light">
+          <div>
+            <p class="eyebrow">THE DIFFERENCE</p>
+            <h2 id="engine-title">Generate. Verify. Remember. Return.</h2>
+          </div>
+          <p>
+            ProjLearn separates content extraction, question generation, verification, and memory so a single confident hallucination does not silently become the curriculum.
+          </p>
+        </div>
+
+        <ol class="engine-flow four-step-flow">
+          <li><span class="step-number">01</span><div class="step-visual focus-visual"><span>↯</span></div><h3>Compile</h3><p>Turn source material into concepts, evidence, and retrieval targets.</p></li>
+          <li><span class="step-number">02</span><div class="step-visual signal-visual"><span></span><span></span><span></span><span></span><span></span></div><h3>Challenge</h3><p>Ask retrieval questions that target the learner’s weakest concepts.</p></li>
+          <li><span class="step-number">03</span><div class="step-visual focus-visual"><span>✓</span></div><h3>Verify</h3><p>Check generated material against the source and expose uncertainty to a human.</p></li>
+          <li><span class="step-number">04</span><div class="step-visual return-visual"><span>1d</span><span>3d</span><span>7d</span></div><h3>Return</h3><p>Persist misses and misconceptions, then bring them back at the right time.</p></li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <span class="footer-mark">ProjLearn</span>
+        <p>Compile the course. Find the gap. Check the agent. Remember the learner.</p>
+      </div>
+      <div class="footer-meta">
+        <span>Built from the recovered L8 adaptive-learning engine</span>
+        <a href="https://github.com/PROGRESSIVE-ALANU" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </div>
+    </footer>
+
+    <div class="session-overlay" id="session-overlay" hidden>
+      <section class="session-dialog" role="dialog" aria-modal="true" aria-labelledby="session-title">
+        <header class="session-header">
+          <a class="brand session-brand" href="#top" aria-label="ProjLearn">
+            <span class="brand-mark" aria-hidden="true">PL</span>
+          </a>
+          <div class="session-progress" aria-label="Session progress">
+            <span id="session-step">PROMPT 1 OF 3</span>
+            <div class="progress-dots" id="progress-dots"></div>
+          </div>
+          <div class="session-clock" id="session-clock" aria-label="Time remaining">08:00</div>
+          <button class="close-button" id="close-session" type="button" aria-label="Close learning session">×</button>
+        </header>
+
+        <div class="session-body">
+          <aside class="session-context">
+            <p class="label">CURRENT CONCEPT</p>
+            <h2 id="session-title">Pointer ownership</h2>
+            <p id="session-context-copy">Memory &amp; Data Structures</p>
+            <div class="concept-score"><span>MASTERY BEFORE LOOP</span><strong id="concept-score">22%</strong></div>
+            <div class="context-track"><span id="context-track-fill"></span></div>
+            <p class="context-note" id="context-note">ProjLearn chose this because it is your highest-priority weak concept.</p>
+          </aside>
+
+          <div class="question-stage">
+            <div id="question-view">
+              <p class="question-kicker" id="question-kicker">DIAGNOSTIC</p>
+              <h3 id="question-text">Loading question…</h3>
+              <div class="answer-grid" id="answer-grid" role="radiogroup" aria-label="Answer choices"></div>
+              <div class="confidence-row">
+                <span>How sure are you?</span>
+                <div class="confidence-buttons" role="group" aria-label="Answer confidence">
+                  <button type="button" data-confidence="low">Guessing</button>
+                  <button type="button" data-confidence="medium" class="is-selected">Somewhat</button>
+                  <button type="button" data-confidence="high">Certain</button>
+                </div>
+              </div>
+              <button class="button button-primary submit-answer" id="submit-answer" type="button" disabled>Check answer</button>
+            </div>
+
+            <div class="feedback-view" id="feedback-view" hidden>
+              <p class="feedback-status" id="feedback-status">NEEDS REVIEW</p>
+              <h3 id="feedback-title">The ownership changed before the pointer did.</h3>
+              <p id="feedback-copy"></p>
+              <div class="feedback-rule"><span>REMEMBER</span><strong id="feedback-rule"></strong></div>
+              <div class="schedule-note" id="schedule-note"></div>
+              <button class="button button-primary" id="next-question" type="button">Next prompt <span aria-hidden="true">→</span></button>
+            </div>
+
+            <div class="completion-view" id="completion-view" hidden>
+              <p class="question-kicker">LOOP COMPLETE</p>
+              <div class="completion-score" id="completion-score">2/3</div>
+              <h3>Eight minutes well spent.</h3>
+              <p id="completion-copy"></p>
+              <div class="completion-stats" id="completion-stats"></div>
+              <button class="button button-primary" id="finish-session" type="button">Return to dashboard</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

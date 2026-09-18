@@ -12,7 +12,7 @@
 <meta content="/assets/l8-social.png" property="og:image"/>
 <link href="/assets/l8-mark.svg" rel="icon" type="image/svg+xml"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
-<link href="/styles.css?v=20260918c" rel="stylesheet"/>
+<link href="/styles.css?v=20260918d" rel="stylesheet"/>
 <title>ProjLearn — Your study room</title>
 </head>
 <body class="study-workspace">
@@ -56,18 +56,16 @@
 <div class="panel-heading compact-heading">
 <div>
 <p class="label">02 / BUILD &amp; CHECK</p>
-<h3 id="pipeline-title">A second set of eyes.</h3>
+<h3 id="pipeline-title">One pass. Then verify.</h3>
 </div>
 <span class="score-pill" id="ai-mode-pill">READY WHEN YOU ARE</span>
 </div>
 <ol class="pipeline-list" id="pipeline-list">
-<li data-stage="cartographer"><span>01</span><div><strong>Cartographer</strong><small>Find the concepts</small></div><b>waiting</b></li>
-<li data-stage="scholar"><span>02</span><div><strong>Scholar</strong><small>Connect the evidence</small></div><b>waiting</b></li>
-<li data-stage="examiner"><span>03</span><div><strong>Examiner</strong><small>Write practice questions</small></div><b>waiting</b></li>
-<li data-stage="critic"><span>04</span><div><strong>Critic</strong><small>Check against the source</small></div><b>waiting</b></li>
-<li data-stage="memory"><span>05</span><div><strong>Memory Engine</strong><small>Remember your progress</small></div><b>ready</b></li>
+<li data-stage="course-ai"><span>01</span><div><strong>Course AI</strong><small>Concepts, evidence, and practice in one pass</small></div><b>waiting</b></li>
+<li data-stage="validator"><span>02</span><div><strong>Source Validator</strong><small>Match quoted evidence to your upload</small></div><b>waiting</b></li>
+<li data-stage="memory"><span>03</span><div><strong>Memory Engine</strong><small>Remember misses and corrections</small></div><b>ready</b></li>
 </ol>
-<p class="pipeline-disclaimer">Four AI passes organize, ground, question, and check your material. If AI is unavailable, a clearly labelled local draft remains available.</p>
+<p class="pipeline-disclaimer">One AI call builds the study set. ProjLearn then checks quoted evidence against your source and keeps learning state locally.</p>
 </article>
 </div>
 </section>
@@ -266,6 +264,6 @@
 </section>
 </div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
-<script src="/app.js?v=20260918c" type="module"></script>
+<script src="/app.js?v=20260918d" type="module"></script>
 </body>
 </html>

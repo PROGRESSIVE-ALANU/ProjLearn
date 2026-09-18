@@ -152,6 +152,109 @@ def extract_response_text(payload):
                 return content["text"]
     raise RuntimeError("The model returned no structured text.")
 
+def semantic_grade_answer(question, expected, user_answer, evidence):
+    key = api_key()
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY is not configured in Streamlit secrets.")
+
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "verdict": {"type": "string", "enum": ["correct", "partial", "incorrect"]},
+            "feedback": {"type": "string"},
+            "missingPoint": {"type": ["string", "null"]},
+        },
+        "required": ["verdict", "feedback", "missingPoint"],
+    }
+    payload = {
+        "model": MODEL,
+        "store": False,
+        "max_output_tokens": 500,
+        "reasoning": {"effort": "low"},
+        "instructions": (
+            "You are ProjLearn's semantic answer grader. Judge meaning, not wording. "
+            "Accept mathematically, numerically, symbolically, or verbally equivalent answers "
+            '(for example "0" and "zero") and harmless differences in notation or phrasing. '
+            "Use only the supplied question, expected answer, and source evidence. "
+            'Return correct when the required idea is expressed, partial when an important part is missing, '
+            "and incorrect when the answer conflicts with or fails to express the required idea."
+        ),
+        "input": (
+            f"QUESTION:\n{question}\n\nEXPECTED SOURCE-BACKED ANSWER:\n{expected}\n\n"
+            f"SOURCE EVIDENCE:\n{evidence}\n\nLEARNER ANSWER:\n{user_answer}"
+        ),
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "projlearn_answer_grade",
+                "strict": True,
+                "schema": schema,
+            }
+        },
+    }
+    response = requests.post(
+        OPENAI_URL,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=25,
+    )
+    data = response.json()
+    if not response.ok:
+        code = ((data.get("error") or {}).get("code") or f"HTTP_{response.status_code}")
+        raise RuntimeError(f"AI grading failed: {code}")
+    return json.loads(extract_response_text(data))
+
+def course_context(course):
+    concepts = "\n".join(
+        f"- {item['title']}: {item.get('evidence') or item.get('whyItMatters','')}"
+        for item in course.get("concepts", [])
+    )
+    claims = "\n".join(f"- {item['text']}" for item in course.get("claims", []))
+    prompts = "\n".join(
+        f"- Q: {item['prompt']}\n  A: {item['expectedAnswer']}\n  Evidence: {item.get('citation',{}).get('quote','')}"
+        for item in course.get("prompts", [])
+    )
+    return (
+        f"COURSE: {course.get('title','Course')}\nSOURCE: {course.get('sourceName','Course material')}\n\n"
+        f"CONCEPTS:\n{concepts}\n\nSOURCE-BACKED CLAIMS:\n{claims}\n\nPRACTICE SET:\n{prompts}"
+    )
+
+def ask_course_coach(course, message, history):
+    key = api_key()
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY is not configured in Streamlit secrets.")
+    recent = "\n".join(
+        f"{'COACH' if item.get('role') == 'assistant' else 'LEARNER'}: {item.get('content','')}"
+        for item in history[-8:]
+    )
+    payload = {
+        "model": MODEL,
+        "store": False,
+        "max_output_tokens": 1200,
+        "reasoning": {"effort": "low"},
+        "instructions": (
+            "You are ProjLearn's course coach. Ground answers in the supplied course context. "
+            "If the context does not support a factual claim, say the uploaded material does not cover it. "
+            "Explain simply, compare concepts, generate short practice questions, and discuss why answers are right or wrong."
+        ),
+        "input": (
+            f"COURSE CONTEXT:\n{course_context(course)[:30000]}\n\nRECENT CHAT:\n{recent or '(none)'}\n\n"
+            f"LEARNER: {message}\nCOACH:"
+        ),
+    }
+    response = requests.post(
+        OPENAI_URL,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=25,
+    )
+    data = response.json()
+    if not response.ok:
+        code = ((data.get("error") or {}).get("code") or f"HTTP_{response.status_code}")
+        raise RuntimeError(f"Course coach failed: {code}")
+    return extract_response_text(data)
+
 def compile_course(source_text, source_name):
     key = api_key()
     if not key:
@@ -225,6 +328,8 @@ if "source_text" not in st.session_state:
     st.session_state.source_text = ""
 if "source_name" not in st.session_state:
     st.session_state.source_name = ""
+if "coach_history" not in st.session_state:
+    st.session_state.coach_history = []
 
 st.markdown('<div class="pl-kicker">PROJLEARN · THE STUDY ROOM</div>', unsafe_allow_html=True)
 st.markdown('<div class="pl-title">Turn a source into practice.</div>', unsafe_allow_html=True)
@@ -259,6 +364,7 @@ with left:
                         st.session_state.source_text,
                         st.session_state.source_name or "Course material",
                     )
+                    st.session_state.coach_history = []
                 st.success("LIVE AI compilation complete.")
             except Exception as exc:
                 st.error(str(exc))
@@ -272,7 +378,7 @@ if course:
     st.subheader(course["title"])
     st.caption(course.get("sourceName", "Course material"))
 
-    concepts_tab, practice_tab, evidence_tab = st.tabs(["Concepts", "Practice", "Source evidence"])
+    concepts_tab, practice_tab, coach_tab, evidence_tab = st.tabs(["Concepts", "Practice", "Course coach", "Source evidence"])
 
     with concepts_tab:
         cols = st.columns(2)
@@ -290,9 +396,26 @@ if course:
             st.caption(f"{prompt['conceptTitle']} · {prompt['difficulty']}")
             answer = st.text_area("Your answer", key=f"answer_{i}", placeholder="Type what you remember…")
             if st.button("Check answer", key=f"check_{i}"):
-                verdict, message = grade_answer(answer, prompt["expectedAnswer"])
-                css = {"strong":"pl-good","close":"pl-close","review":"pl-review"}.get(verdict, "pl-close")
-                st.session_state[f"feedback_{i}"] = (css, message)
+                if not answer.strip():
+                    st.session_state[f"feedback_{i}"] = ("pl-close", "Type an answer first.")
+                else:
+                    try:
+                        with st.spinner("Checking meaning…"):
+                            grade = semantic_grade_answer(
+                                prompt["prompt"],
+                                prompt["expectedAnswer"],
+                                answer,
+                                prompt.get("citation", {}).get("quote", ""),
+                            )
+                        css = {"correct":"pl-good","partial":"pl-close","incorrect":"pl-review"}.get(grade["verdict"], "pl-close")
+                        message = grade["feedback"]
+                        if grade.get("missingPoint"):
+                            message += f" Missing: {grade['missingPoint']}"
+                        st.session_state[f"feedback_{i}"] = (css, message)
+                    except Exception:
+                        verdict, message = grade_answer(answer, prompt["expectedAnswer"])
+                        css = {"strong":"pl-good","close":"pl-close","review":"pl-review"}.get(verdict, "pl-close")
+                        st.session_state[f"feedback_{i}"] = (css, "AI grading was unavailable. Fast local check: " + message)
             feedback = st.session_state.get(f"feedback_{i}")
             if feedback:
                 st.markdown(f'<div class="{feedback[0]}">{feedback[1]}</div>', unsafe_allow_html=True)
@@ -302,6 +425,24 @@ if course:
                 page = prompt["citation"].get("page")
                 st.caption(f"{prompt['citation'].get('source','Course source')}" + (f" · p. {page}" if page else ""))
             st.divider()
+
+    with coach_tab:
+        st.caption("Source-grounded course chat. Ask for explanations, comparisons, or another quiz question.")
+        for item in st.session_state.coach_history:
+            with st.chat_message("assistant" if item["role"] == "assistant" else "user"):
+                st.write(item["content"])
+
+        coach_message = st.text_input("Ask the course coach", key="coach_message", placeholder="Explain Gauss's law another way…")
+        if st.button("Ask coach", type="primary", key="ask_course_coach") and coach_message.strip():
+            history_before = list(st.session_state.coach_history)
+            st.session_state.coach_history.append({"role": "user", "content": coach_message.strip()})
+            try:
+                with st.spinner("Coach is thinking…"):
+                    reply = ask_course_coach(course, coach_message.strip(), history_before)
+                st.session_state.coach_history.append({"role": "assistant", "content": reply})
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
 
     with evidence_tab:
         for claim in course["claims"]:

@@ -12,7 +12,7 @@
 <meta content="/assets/l8-social.png" property="og:image"/>
 <link href="/assets/l8-mark.svg" rel="icon" type="image/svg+xml"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
-<link href="/styles.css?v=20260918e" rel="stylesheet"/>
+<link href="/styles.css?v=20260918f" rel="stylesheet"/>
 <title>ProjLearn — Your study room</title>
 </head>
 <body class="study-workspace">
@@ -82,7 +82,8 @@
 <div><span>SOURCES</span><strong id="compiled-source-count">0</strong></div>
 <div><span>CONCEPTS</span><strong id="compiled-concept-count">0</strong></div>
 <div><span>HUMAN CHECKS</span><strong id="human-check-count">0</strong></div>
-</div><article class="panel course-quiz-panel" id="source-quiz">
+</div><div class="study-practice-grid">
+<article class="panel course-quiz-panel" id="source-quiz">
 <div class="panel-heading">
 <div>
 <p class="label">SOURCE-CHECKED RETRIEVAL</p>
@@ -115,6 +116,27 @@
 </div>
 <form class="correction-form" hidden="" id="correction-form"><label for="correction-text">Your source-backed correction</label><p>Explain the change and include the relevant source evidence. Related claims will be marked for re-check.</p><textarea id="correction-text" placeholder="The source says…" required="" rows="4"></textarea><div class="compiler-actions"><button class="button button-primary" type="submit">Save correction</button><button class="button button-secondary" id="cancel-correction" type="button">Cancel</button></div></form></div>
 </article>
+<aside class="panel course-coach-panel" id="course-coach">
+<div class="panel-heading compact-heading">
+<div>
+<p class="label">COURSE COACH</p>
+<h3>Ask while you study.</h3>
+</div>
+<span class="score-pill" id="coach-status">SOURCE-GROUNDED</span>
+</div>
+<p class="coach-intro">Ask for another explanation, why an answer is wrong, a comparison, or another practice question. The coach stays anchored to this compiled course.</p>
+<div aria-live="polite" class="coach-messages" id="coach-messages">
+<div class="coach-empty"><strong>Your course coach will appear here.</strong><span>Compile a source first, then ask anything about it.</span></div>
+</div>
+<form class="coach-form" id="coach-form">
+<label for="coach-input">Message the coach</label>
+<textarea id="coach-input" rows="3" placeholder="Explain this another way…"></textarea>
+<div class="coach-actions">
+<button class="button button-primary" id="coach-send" type="submit">Ask coach</button>
+</div>
+</form>
+</aside>
+</div>
 <div aria-label="Course notebook" class="notebook-tabs" role="tablist"><button aria-controls="concepts-panel" aria-selected="true" data-notebook="concepts" id="concepts-tab" role="tab" type="button">Concepts</button><button aria-controls="evidence-panel" aria-selected="false" data-notebook="evidence" id="evidence-tab" role="tab" tabindex="-1" type="button">Source evidence</button></div><div class="course-agent-grid" id="course-notebook">
 <article aria-labelledby="concepts-tab" class="panel graph-panel" id="concepts-panel" role="tabpanel">
 <div class="panel-heading">
@@ -272,6 +294,6 @@
 </section>
 </div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
-<script src="/app.js?v=20260918e" type="module"></script>
+<script src="/app.js?v=20260918f" type="module"></script>
 </body>
 </html>

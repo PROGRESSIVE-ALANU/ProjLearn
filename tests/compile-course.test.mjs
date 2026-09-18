@@ -30,6 +30,11 @@ test('single AI pass compiles concepts, claims and prompts with deterministic so
   const names = ['Stack', 'Heap', 'Pointers', 'Free'];
   const result = {
     title: 'Memory',
+    summary: {
+      overview: 'Memory management covers stack, heap, pointers, and freeing allocations.',
+      keyPoints: ['Stack stores locals.', 'Heap stores dynamic objects.', 'Pointers hold addresses.'],
+      studyFocus: ['Pointers', 'Freeing allocations'],
+    },
     concepts: names.map(title => ({
       title,
       importance: 'core',
@@ -67,6 +72,7 @@ test('single AI pass compiles concepts, claims and prompts with deterministic so
     assert.equal(requests[0].text.format.name, 'projlearn_course_compiler');
     assert.equal(course.prompts.length, 4);
     assert.equal(course.claims.length, 4);
+    assert.equal(course.summary.keyPoints.length, 3);
     assert.equal(course.prompts[0].verification, 'source-verified');
     assert.deepEqual(course.edges, [{ from: 'heap', to: 'free', relation: 'prerequisite' }]);
     assert.equal(course.ai.enabled, true);

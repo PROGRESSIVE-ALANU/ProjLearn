@@ -555,7 +555,7 @@ function renderCourseAgent() {
     elements.reviewSheet.innerHTML = '<p class="empty-copy">Source-backed review claims will appear here.</p>';
     elements.traceCount.textContent = "0 events";
     elements.traceList.innerHTML = '<p class="empty-copy">The compilation trace will appear here.</p>';
-    if (elements.aiModePill) elements.aiModePill.textContent = "AI-READY V0.2";
+    if (elements.aiModePill) elements.aiModePill.textContent = "AI-READY V0.3";
     renderVerificationLog();
     renderSourceQuiz();
     renderCourseCoach();
@@ -628,13 +628,13 @@ async function compilePendingFiles() {
       sourceName,
       sources: sources.map(({ name, type, pages }) => ({ name, type, pages: pages ?? null })),
     });
-    courseState = { course, sources: sources.map(({ name, type, pages }) => ({ name, type, pages: pages ?? null })), verifiedClaimIds: [], verificationLog: [], promptMemory: {} };
+    courseState = { course, sources: sources.map(({ name, type, pages }) => ({ name, type, pages: pages ?? null })), verifiedClaimIds: [], verificationLog: [], promptMemory: {}, chatHistory: [] };
     persistCourseState();
     renderCourseAgent();
     elements.compilerNote.textContent = mode === "ai"
-      ? `AI-compiled ${course.concepts.length} concepts from ${sources.length} source${sources.length === 1 ? "" : "s"}. Critic filtering is active.`
+      ? `AI-compiled ${course.concepts.length} concepts from ${sources.length} source${sources.length === 1 ? "" : "s"}. Source validation and semantic answer grading are ready.`
       : `Compiled locally because the AI backend is unavailable${error?.message ? ` (${error.message})` : ""}. The demo still works, but items require human checks.`;
-    showToast(mode === "ai" ? "Course Agent compiled by live specialist agents." : "Course Agent compiled with the local fallback.");
+    showToast(mode === "ai" ? "Course AI compiled the workspace." : "Course workspace compiled with the local fallback.");
     showWorkspace("course-agent");
   } catch (error) {
     console.error(error);
@@ -653,11 +653,11 @@ async function loadDemoCourse() {
   resetPipeline();
   const { course, mode } = await compileHybrid({ text: DEMO_COURSE_TEXT, sourceName: "Physics II demo chapter", sources: [{ name: "TAPIA E&M demo chapter", type: "demo", pages: null }] });
   if (!course.ai?.enabled) course.title = "Physics II — Electric Fields, Flux, and Potential";
-  courseState = { course, sources: [{ name: "TAPIA E&M demo chapter", type: "demo", pages: null }], verifiedClaimIds: [], verificationLog: [], promptMemory: {} };
+  courseState = { course, sources: [{ name: "TAPIA E&M demo chapter", type: "demo", pages: null }], verifiedClaimIds: [], verificationLog: [], promptMemory: {}, chatHistory: [] };
   persistCourseState();
   renderCourseAgent();
-  elements.compilerNote.textContent = mode === "ai" ? "Demo compiled with live AI agents. Reload later: the course state still survives." : "Demo compiled locally. Add an API key later to activate live agents.";
-  showToast(mode === "ai" ? "Live-agent TAPIA demo compiled." : "Local TAPIA demo compiled.");
+  elements.compilerNote.textContent = mode === "ai" ? "Demo compiled with live AI. Semantic answer grading and the course coach are ready." : "Demo compiled locally. Add an API key later to activate live AI.";
+  showToast(mode === "ai" ? "Live AI TAPIA demo compiled." : "Local TAPIA demo compiled.");
   showWorkspace("course-agent");
 }
 

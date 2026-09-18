@@ -111,8 +111,8 @@ ProjLearn is prepared for Vercel as well as Netlify.
 - Branch: `main`
 - Framework preset: **Other**
 - Root directory: repository root
-- Build command: leave empty
-- Output directory: leave empty
+- Build command: `node scripts/build.mjs`
+- Output directory: `dist`
 - Add `OPENAI_API_KEY` as a Vercel environment variable for Production, Preview, and Development as appropriate.
 - Optional: add `PROJLEARN_MODEL`; otherwise the server functions use the configured default.
 - Vercel API routes:

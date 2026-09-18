@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918e";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918f";
 import {
   buildSession,
   calculateMastery,
@@ -6,9 +6,10 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918e";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918e";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918e";
+} from "./src/engine.js?v=20260918f";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918f";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918f";
+import { askCourseCoach, gradeAnswerWithAI } from "./src/study-assistant.js?v=20260918f";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -114,6 +115,11 @@ const elements = {
   markKnew: document.querySelector("#mark-knew"),
   markMissed: document.querySelector("#mark-missed"),
   flagAgent: document.querySelector("#flag-agent"),
+  coachStatus: document.querySelector("#coach-status"),
+  coachMessages: document.querySelector("#coach-messages"),
+  coachForm: document.querySelector("#coach-form"),
+  coachInput: document.querySelector("#coach-input"),
+  coachSend: document.querySelector("#coach-send"),
   aiModePill: document.querySelector("#ai-mode-pill"),
 };
 
@@ -145,7 +151,7 @@ function loadState() {
 }
 
 function loadCourseState() {
-  const fallback = { course: null, sources: [], verifiedClaimIds: [], verificationLog: [], promptMemory: {} };
+  const fallback = { course: null, sources: [], verifiedClaimIds: [], verificationLog: [], promptMemory: {}, chatHistory: [] };
   try {
     const saved = JSON.parse(localStorage.getItem(COURSE_STORAGE_KEY) ?? localStorage.getItem(LEGACY_COURSE_STORAGE_KEY) ?? "null");
     if (!saved || typeof saved !== "object") return fallback;
@@ -155,6 +161,7 @@ function loadCourseState() {
       verifiedClaimIds: Array.isArray(saved.verifiedClaimIds) ? saved.verifiedClaimIds : [],
       verificationLog: Array.isArray(saved.verificationLog) ? saved.verificationLog : [],
       promptMemory: saved.promptMemory && typeof saved.promptMemory === "object" ? saved.promptMemory : {},
+      chatHistory: Array.isArray(saved.chatHistory) ? saved.chatHistory.slice(-20) : [],
     };
   } catch {
     return fallback;
@@ -365,6 +372,84 @@ function nextCoursePrompt() {
   })[0];
 }
 
+
+function courseCoachContext() {
+  const course = courseState.course;
+  if (!course) return "";
+  const conceptsText = (course.concepts ?? []).map((item) =>
+    `- ${item.title}: ${item.evidence || item.whyItMatters || ""} [${citationLabel(item.citation)}]`
+  ).join("\n");
+  const claimsText = (course.claims ?? []).map((item) =>
+    `- ${item.text} [${citationLabel(item.citation)}]`
+  ).join("\n");
+  const promptsText = (course.prompts ?? []).map((item) =>
+    `- Q: ${item.prompt}\n  A: ${item.expectedAnswer}\n  Evidence: ${item.evidence || item.citation?.quote || ""}`
+  ).join("\n");
+
+  return `COURSE: ${course.title}\nSOURCE: ${course.sourceName || "Course material"}\n\nCONCEPTS:\n${conceptsText}\n\nSOURCE-BACKED CLAIMS:\n${claimsText}\n\nPRACTICE SET:\n${promptsText}`;
+}
+
+function renderCourseCoach() {
+  const history = Array.isArray(courseState.chatHistory) ? courseState.chatHistory : [];
+  if (!courseState.course) {
+    elements.coachStatus.textContent = "WAITING FOR SOURCE";
+    elements.coachMessages.innerHTML = '<div class="coach-empty"><strong>Your course coach will appear here.</strong><span>Compile a source first, then ask anything about it.</span></div>';
+    elements.coachInput.disabled = true;
+    elements.coachSend.disabled = true;
+    return;
+  }
+
+  elements.coachInput.disabled = false;
+  elements.coachSend.disabled = false;
+  if (elements.coachStatus.textContent !== "THINKING…") elements.coachStatus.textContent = "SOURCE-GROUNDED";
+
+  if (!history.length) {
+    elements.coachMessages.innerHTML = '<div class="coach-empty"><strong>Course loaded.</strong><span>Try “Explain the first concept simply” or “Quiz me on the weakest idea.”</span></div>';
+    return;
+  }
+
+  elements.coachMessages.innerHTML = history.map((item) =>
+    `<div class="coach-message ${item.role === "assistant" ? "is-assistant" : "is-user"}"><span>${item.role === "assistant" ? "COACH" : "YOU"}</span><p>${escapeHtml(item.content)}</p></div>`
+  ).join("");
+  elements.coachMessages.scrollTop = elements.coachMessages.scrollHeight;
+}
+
+async function submitCoachMessage(message) {
+  const clean = String(message || "").trim();
+  if (!clean || !courseState.course) return;
+
+  const historyBefore = [...(courseState.chatHistory ?? [])].slice(-8);
+  courseState.chatHistory = [...(courseState.chatHistory ?? []), { role: "user", content: clean }].slice(-20);
+  persistCourseState();
+  elements.coachInput.value = "";
+  elements.coachStatus.textContent = "THINKING…";
+  elements.coachSend.disabled = true;
+  renderCourseCoach();
+  elements.coachStatus.textContent = "THINKING…";
+  elements.coachSend.disabled = true;
+
+  try {
+    const reply = await askCourseCoach({
+      message: clean,
+      context: courseCoachContext(),
+      history: historyBefore,
+    });
+    courseState.chatHistory = [...courseState.chatHistory, { role: "assistant", content: reply }].slice(-20);
+    persistCourseState();
+    elements.coachStatus.textContent = "SOURCE-GROUNDED";
+  } catch (error) {
+    courseState.chatHistory = [...courseState.chatHistory, {
+      role: "assistant",
+      content: `I couldn't reach the course coach right now (${error?.code || "ASSISTANT_FAILED"}). Your course and progress are still saved.`,
+    }].slice(-20);
+    persistCourseState();
+    elements.coachStatus.textContent = "OFFLINE";
+  } finally {
+    elements.coachSend.disabled = false;
+    renderCourseCoach();
+  }
+}
+
 function renderSourceQuiz() {
   document.querySelector('#correction-form').hidden = true;
   const course = courseState.course;
@@ -473,6 +558,7 @@ function renderCourseAgent() {
     if (elements.aiModePill) elements.aiModePill.textContent = "AI-READY V0.2";
     renderVerificationLog();
     renderSourceQuiz();
+    renderCourseCoach();
     return;
   }
 
@@ -508,6 +594,7 @@ function renderCourseAgent() {
   }
   renderVerificationLog();
   renderSourceQuiz();
+  renderCourseCoach();
 }
 
 function verifyItem(id, message) {
@@ -734,15 +821,50 @@ elements.submitAnswer.addEventListener("click", submitCurrentAnswer);
 elements.nextQuestion.addEventListener("click", advanceQuestion);
 elements.finishSession.addEventListener("click", () => closeSession({ completed: true }));
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
-elements.checkTypedAnswer.addEventListener("click", () => {
+elements.checkTypedAnswer.addEventListener("click", async () => {
   const promptId = elements.checkTypedAnswer.dataset.promptId;
   const prompt = courseState.course?.prompts?.find((item) => item.id === promptId);
   if (!prompt) return;
-  const result = gradeTypedAnswer(elements.typedAnswer.value, prompt.expectedAnswer);
+
+  const userAnswer = elements.typedAnswer.value.trim();
+  if (!userAnswer) {
+    elements.answerFeedback.hidden = false;
+    elements.answerFeedback.dataset.verdict = "empty";
+    elements.answerFeedback.textContent = "Type an answer first.";
+    return;
+  }
+
+  elements.checkTypedAnswer.disabled = true;
+  elements.checkTypedAnswer.textContent = "Checking meaning…";
   elements.answerFeedback.hidden = false;
-  elements.answerFeedback.dataset.verdict = result.verdict;
-  elements.answerFeedback.textContent = result.message;
-  if (result.verdict !== "empty") elements.selfCheckActions.hidden = false;
+  elements.answerFeedback.dataset.verdict = "thinking";
+  elements.answerFeedback.textContent = "Comparing your meaning with the source-backed answer…";
+
+  try {
+    const grade = await gradeAnswerWithAI({
+      question: prompt.prompt,
+      expectedAnswer: prompt.expectedAnswer,
+      userAnswer,
+      evidence: prompt.evidence || prompt.citation?.quote || "",
+    });
+    elements.answerFeedback.dataset.verdict = grade.verdict;
+    elements.answerFeedback.textContent = grade.feedback + (grade.missingPoint ? ` Missing: ${grade.missingPoint}` : "");
+    elements.selfCheckActions.hidden = false;
+  } catch (error) {
+    const fallback = gradeTypedAnswer(userAnswer, prompt.expectedAnswer);
+    elements.answerFeedback.dataset.verdict = fallback.verdict;
+    elements.answerFeedback.textContent = `AI grading was unavailable (${error?.code || "ASSISTANT_FAILED"}). Fast local check: ${fallback.message}`;
+    elements.selfCheckActions.hidden = false;
+  } finally {
+    elements.checkTypedAnswer.disabled = false;
+    elements.checkTypedAnswer.textContent = "Check answer";
+  }
+});
+
+
+elements.coachForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitCoachMessage(elements.coachInput.value);
 });
 
 elements.typedAnswer.addEventListener("keydown", (event) => {

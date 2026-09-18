@@ -25,15 +25,29 @@ test('validates requests and keeps provider errors private', async () => {
   } finally { globalThis.fetch = original; delete process.env.OPENAI_API_KEY; }
 });
 
-test('four specialist stages pass context, apply critic corrections and reject unsupported output', async () => {
+test('single AI pass compiles concepts, claims and prompts with deterministic source checks', async () => {
   process.env.OPENAI_API_KEY = 'test-placeholder';
   const names = ['Stack', 'Heap', 'Pointers', 'Free'];
-  const results = [
-    { title: 'Memory', concepts: names.map(title => ({ title, importance: 'core', prerequisiteTitles: title === 'Free' ? ['Heap'] : [], whyItMatters: 'Memory safety' })) },
-    { conceptEvidence: names.map(conceptTitle => ({ conceptTitle, evidence: 'Source evidence', citation })), claims: names.map(conceptTitle => ({ conceptTitle, text: 'Claim', citation })) },
-    { prompts: names.map(conceptTitle => ({ conceptTitle, prompt: 'Explain this concept', expectedAnswer: 'Original answer', citation, difficulty: 'explain' })) },
-    { promptReviews: names.map((_, promptIndex) => ({ promptIndex, verdict: promptIndex === 0 ? 'rejected' : 'approved', note: 'Checked source', correctedExpectedAnswer: promptIndex === 1 ? 'Corrected answer' : null })), claimReviews: names.map((_, claimIndex) => ({ claimIndex, verdict: claimIndex === 0 ? 'rejected' : 'approved', note: 'Checked source' })) },
-  ];
+  const result = {
+    title: 'Memory',
+    concepts: names.map(title => ({
+      title,
+      importance: 'core',
+      prerequisiteTitles: title === 'Free' ? ['Heap'] : [],
+      whyItMatters: 'Memory safety',
+      evidence: 'Source evidence',
+      citation,
+    })),
+    claims: names.map(conceptTitle => ({ conceptTitle, text: 'Claim', citation })),
+    prompts: names.map(conceptTitle => ({
+      conceptTitle,
+      prompt: 'Explain this concept',
+      expectedAnswer: 'A pointer holds an address.',
+      citation,
+      difficulty: 'explain',
+    })),
+  };
+
   const requests = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
@@ -42,22 +56,21 @@ test('four specialist stages pass context, apply critic corrections and reject u
     requests.push(request);
     assert.equal(request.store, false);
     assert.equal(request.text.format.strict, true);
-    return { ok: true, json: async () => ({ output: [{ content: [{ text: JSON.stringify(results[requests.length - 1]) }] }] }) };
+    return { ok: true, json: async () => ({ output: [{ content: [{ text: JSON.stringify(result) }] }] }) };
   };
+
   try {
     const response = await handler(event({ text: source, sourceName: 'Memory notes' }));
     assert.equal(response.statusCode, 200);
     const { course } = JSON.parse(response.body);
-    assert.deepEqual(requests.map(r => r.text.format.name), ['projlearn_cartographer', 'projlearn_scholar', 'projlearn_examiner', 'projlearn_critic']);
-    assert.match(requests[1].input, /CONCEPT MAP/);
-    assert.match(requests[2].input, /SCHOLAR NOTES/);
-    assert.match(requests[3].input, /PROMPTS/);
-    assert.equal(course.prompts.length, 3);
-    assert.equal(course.claims.length, 3);
-    assert.equal(course.prompts[0].expectedAnswer, 'Corrected answer');
-    assert.equal(course.prompts[0].citation.page, 1);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].text.format.name, 'projlearn_course_compiler');
+    assert.equal(course.prompts.length, 4);
+    assert.equal(course.claims.length, 4);
+    assert.equal(course.prompts[0].verification, 'source-verified');
     assert.deepEqual(course.edges, [{ from: 'heap', to: 'free', relation: 'prerequisite' }]);
     assert.equal(course.ai.enabled, true);
-    assert.equal(course.trace.length, 5);
+    assert.equal(course.ai.architecture, 'single-pass');
+    assert.equal(course.trace.length, 3);
   } finally { globalThis.fetch = original; delete process.env.OPENAI_API_KEY; }
 });

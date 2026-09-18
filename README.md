@@ -66,8 +66,8 @@ This is the main ProjLearn experience:
 
 1. **Bring a source** — a paper, chapter, notes, or extracted webpage/article text.
 2. **Read the AI summary first** — ProjLearn produces a concise overview, key points, and study-focus items before practice.
-3. **Retrieve from memory** — answer source-grounded questions without looking back.
-4. **Grade meaning, not wording** — semantic grading accepts equivalent phrasing, notation, and numerical/verbal forms.
+3. **Retrieve from memory** — practice with a mix of typed free-response and clickable A–D questions, all grounded in the source.
+4. **Grade the right way** — free-response uses semantic grading that accepts equivalent phrasing, notation, and numerical/verbal forms; A–D questions grade instantly on click.
 5. **Remember weakness** — a partial or incorrect answer automatically marks that concept for review in browser-local memory.
 6. **Remix the review** — ProjLearn prepares a fresh question on the same weak concept rather than endlessly repeating the exact old prompt.
 7. **Return where you struggled** — after a reload or later visit, remembered weak concepts are prioritized before unseen/easier prompts.

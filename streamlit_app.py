@@ -143,10 +143,13 @@ compiler_schema = {
                     "conceptTitle": {"type": "string"},
                     "prompt": {"type": "string"},
                     "expectedAnswer": {"type": "string"},
+                    "questionType": {"type": "string", "enum": ["free_response","multiple_choice"]},
+                    "choices": {"type": "array", "minItems": 0, "maxItems": 4, "items": {"type": "string"}},
+                    "correctChoiceIndex": {"type": ["integer","null"], "minimum": 0, "maximum": 3},
                     "citation": citation_schema,
                     "difficulty": {"type": "string", "enum": ["recall","explain","apply","compare"]},
                 },
-                "required": ["conceptTitle","prompt","expectedAnswer","citation","difficulty"],
+                "required": ["conceptTitle","prompt","expectedAnswer","questionType","choices","correctChoiceIndex","citation","difficulty"],
             },
         },
     },
@@ -286,7 +289,9 @@ def compile_course(source_text, source_name):
             "course material. In one pass first create a concise learner-facing summary, then identify teachable concepts and prerequisite relationships, "
             "attach concise evidence, produce review claims, and write retrieval-practice prompts. "
             "Do not use outside knowledge. Every citation quote must be a short exact excerpt copied "
-            "from the supplied source. Use [Page N] markers when present. Keep expected answers concise."
+            "from the supplied source. Use [Page N] markers when present. Keep expected answers concise. "
+            "Mix question formats: roughly half multiple_choice and half free_response where supported. "
+            "For multiple_choice return exactly four plausible choices and correctChoiceIndex 0-3; for free_response return choices [] and correctChoiceIndex null."
         ),
         "input": f"SOURCE NAME: {source_name}\n\nSOURCE:\n{source}",
         "text": {
@@ -428,28 +433,67 @@ if course:
         for i, prompt in enumerate(course["prompts"]):
             st.markdown(f"#### {i+1}. {prompt['prompt']}")
             st.caption(f"{prompt['conceptTitle']} · {prompt['difficulty']}")
-            answer = st.text_area("Your answer", key=f"answer_{i}", placeholder="Type what you remember…")
-            if st.button("Check answer", key=f"check_{i}"):
-                if not answer.strip():
-                    st.session_state[f"feedback_{i}"] = ("pl-close", "Type an answer first.")
-                else:
-                    try:
-                        with st.spinner("Checking meaning…"):
-                            grade = semantic_grade_answer(
-                                prompt["prompt"],
-                                prompt["expectedAnswer"],
-                                answer,
-                                prompt.get("citation", {}).get("quote", ""),
-                            )
-                        css = {"correct":"pl-good","partial":"pl-close","incorrect":"pl-review"}.get(grade["verdict"], "pl-close")
-                        message = grade["feedback"]
-                        if grade.get("missingPoint"):
-                            message += f" Missing: {grade['missingPoint']}"
-                        st.session_state[f"feedback_{i}"] = (css, message)
-                    except Exception:
-                        verdict, message = grade_answer(answer, prompt["expectedAnswer"])
-                        css = {"strong":"pl-good","close":"pl-close","review":"pl-review"}.get(verdict, "pl-close")
-                        st.session_state[f"feedback_{i}"] = (css, "AI grading was unavailable. Fast local check: " + message)
+            is_mcq = (
+                prompt.get("questionType") == "multiple_choice"
+                and len(prompt.get("choices") or []) == 4
+                and isinstance(prompt.get("correctChoiceIndex"), int)
+            )
+
+            if is_mcq:
+                choice_cols = st.columns(2)
+                selected = None
+                for j, choice in enumerate(prompt["choices"]):
+                    label = f"{chr(65+j)} · {choice}"
+                    if choice_cols[j % 2].button(label, key=f"mcq_{i}_{j}", use_container_width=True):
+                        selected = j
+                if selected is not None:
+                    correct = selected == prompt["correctChoiceIndex"]
+                    if correct:
+                        st.session_state[f"feedback_{i}"] = ("pl-good", "Correct. Cleared from immediate review.")
+                        st.session_state.review_memory.pop(str(i), None)
+                    else:
+                        correct_letter = chr(65 + prompt["correctChoiceIndex"])
+                        st.session_state[f"feedback_{i}"] = ("pl-review", f"Not quite. The correct answer is {correct_letter}. Saved to review.")
+                        st.session_state.review_memory[str(i)] = {
+                            "conceptTitle": prompt["conceptTitle"],
+                            "prompt": f"Try this again from another angle: explain {prompt['conceptTitle']} in your own words and connect it to the source.",
+                            "expectedAnswer": prompt["expectedAnswer"],
+                            "evidence": prompt["citation"]["quote"],
+                            "misses": st.session_state.review_memory.get(str(i), {}).get("misses", 0) + 1,
+                        }
+            else:
+                answer = st.text_area("Your answer", key=f"answer_{i}", placeholder="Type what you remember…")
+                if st.button("Check answer", key=f"check_{i}"):
+                    if not answer.strip():
+                        st.session_state[f"feedback_{i}"] = ("pl-close", "Type an answer first.")
+                    else:
+                        try:
+                            with st.spinner("Checking meaning…"):
+                                grade = semantic_grade_answer(
+                                    prompt["prompt"],
+                                    prompt["expectedAnswer"],
+                                    answer,
+                                    prompt.get("citation", {}).get("quote", ""),
+                                )
+                            css = {"correct":"pl-good","partial":"pl-close","incorrect":"pl-review"}.get(grade["verdict"], "pl-close")
+                            message = grade["feedback"]
+                            if grade.get("missingPoint"):
+                                message += f" Missing: {grade['missingPoint']}"
+                            st.session_state[f"feedback_{i}"] = (css, message)
+                            if grade["verdict"] == "correct":
+                                st.session_state.review_memory.pop(str(i), None)
+                            else:
+                                st.session_state.review_memory[str(i)] = {
+                                    "conceptTitle": prompt["conceptTitle"],
+                                    "prompt": f"Try this again from another angle: explain {prompt['conceptTitle']} in your own words and connect it to the source.",
+                                    "expectedAnswer": prompt["expectedAnswer"],
+                                    "evidence": prompt["citation"]["quote"],
+                                    "misses": st.session_state.review_memory.get(str(i), {}).get("misses", 0) + 1,
+                                }
+                        except Exception:
+                            verdict, message = grade_answer(answer, prompt["expectedAnswer"])
+                            css = {"strong":"pl-good","close":"pl-close","review":"pl-review"}.get(verdict, "pl-close")
+                            st.session_state[f"feedback_{i}"] = (css, "AI grading was unavailable. Fast local check: " + message)
             feedback = st.session_state.get(f"feedback_{i}")
             if feedback:
                 st.markdown(f'<div class="{feedback[0]}">{feedback[1]}</div>', unsafe_allow_html=True)

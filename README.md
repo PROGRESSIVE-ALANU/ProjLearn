@@ -60,6 +60,28 @@ The live path now uses one provider call per compilation to reduce latency and t
 5. Without live AI, compilation stays local in the browser.
 
 
+## Accessibility
+
+ProjLearn includes an accessibility baseline across the main study workflow:
+
+- Keyboard-accessible native buttons, links, forms, quiz controls, and notebook tabs.
+- Visible focus states and a skip-to-content link.
+- Semantic landmarks, labels, ARIA attributes, and live regions for changing feedback.
+- Responsive layouts, light/dark themes, and operating-system reduced-motion support.
+- Mixed typed and clickable A-D practice so every question does not require long-form typing.
+- Source evidence can be revealed after grading instead of relying on color alone.
+
+The Study Room also includes an **Accessibility** panel with device-persistent preferences:
+
+- **Read aloud** for the AI summary and current quiz question (including A-D choices) using browser speech synthesis.
+- **Text-size controls** with decrease, reset, and increase actions.
+- **High-contrast mode**.
+- **Reduce-motion override**.
+- **Readable-font mode** using a simpler sans-serif stack.
+- **Read-aloud speed control** and a global Stop reading action.
+
+These features improve access, but the project has not completed a formal WCAG conformance audit and should not claim certified WCAG compliance.
+
 ## Core product loop
 
 This is the main ProjLearn experience:

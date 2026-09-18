@@ -44,10 +44,13 @@ test('single AI pass compiles concepts, claims and prompts with deterministic so
       citation,
     })),
     claims: names.map(conceptTitle => ({ conceptTitle, text: 'Claim', citation })),
-    prompts: names.map(conceptTitle => ({
+    prompts: names.map((conceptTitle, index) => ({
       conceptTitle,
-      prompt: 'Explain this concept',
+      prompt: index % 2 ? 'Which statement is correct?' : 'Explain this concept',
       expectedAnswer: 'A pointer holds an address.',
+      questionType: index % 2 ? 'multiple_choice' : 'free_response',
+      choices: index % 2 ? ['A pointer holds an address.', 'A pointer stores the object itself.', 'A pointer is always NULL.', 'A pointer lives only on the heap.'] : [],
+      correctChoiceIndex: index % 2 ? 0 : null,
       citation,
       difficulty: 'explain',
     })),
@@ -74,6 +77,9 @@ test('single AI pass compiles concepts, claims and prompts with deterministic so
     assert.equal(course.claims.length, 4);
     assert.equal(course.summary.keyPoints.length, 3);
     assert.equal(course.prompts[0].verification, 'source-verified');
+    assert.equal(course.prompts[1].questionType, 'multiple_choice');
+    assert.equal(course.prompts[1].choices.length, 4);
+    assert.equal(course.prompts[1].correctChoiceIndex, 0);
     assert.deepEqual(course.edges, [{ from: 'heap', to: 'free', relation: 'prerequisite' }]);
     assert.equal(course.ai.enabled, true);
     assert.equal(course.ai.architecture, 'single-pass');

@@ -2691,3 +2691,49 @@ svg {
   .course-coach-panel { min-height: 420px; }
   .coach-messages { max-height: 340px; }
 }
+
+/* Summary-first learning flow */
+.course-summary-panel {
+  margin: 0 0 24px;
+  border-top: 3px solid #315bcb;
+}
+.summary-overview {
+  max-width: 930px;
+  margin: 8px 0 22px;
+  color: var(--ink);
+  font: normal 19px/1.7 Georgia, serif;
+}
+.summary-columns {
+  display: grid;
+  grid-template-columns: 1.35fr .9fr;
+  gap: 36px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.summary-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font: 9px ui-monospace, monospace;
+  letter-spacing: 1.4px;
+}
+.summary-columns ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink);
+}
+.summary-columns li {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.summary-start-practice {
+  display: inline-flex;
+  width: auto;
+  margin-top: 22px;
+  text-decoration: none;
+}
+@media(max-width:760px) {
+  .summary-columns { grid-template-columns: 1fr; gap: 18px; }
+  .summary-overview { font-size: 17px; }
+}

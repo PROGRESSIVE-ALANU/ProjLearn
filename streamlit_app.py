@@ -98,6 +98,16 @@ compiler_schema = {
     "additionalProperties": False,
     "properties": {
         "title": {"type": "string"},
+        "summary": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "overview": {"type": "string"},
+                "keyPoints": {"type": "array", "minItems": 3, "maxItems": 7, "items": {"type": "string"}},
+                "studyFocus": {"type": "array", "minItems": 2, "maxItems": 5, "items": {"type": "string"}},
+            },
+            "required": ["overview", "keyPoints", "studyFocus"],
+        },
         "concepts": {
             "type": "array", "minItems": 4, "maxItems": 12,
             "items": {
@@ -140,7 +150,7 @@ compiler_schema = {
             },
         },
     },
-    "required": ["title","concepts","claims","prompts"],
+    "required": ["title","summary","concepts","claims","prompts"],
 }
 
 def extract_response_text(payload):
@@ -273,7 +283,7 @@ def compile_course(source_text, source_name):
         "reasoning": {"effort": "low"},
         "instructions": (
             "You are ProjLearn's single source-grounded course compiler. Read ONLY the supplied "
-            "course material. In one pass identify teachable concepts and prerequisite relationships, "
+            "course material. In one pass first create a concise learner-facing summary, then identify teachable concepts and prerequisite relationships, "
             "attach concise evidence, produce review claims, and write retrieval-practice prompts. "
             "Do not use outside knowledge. Every citation quote must be a short exact excerpt copied "
             "from the supplied source. Use [Page N] markers when present. Keep expected answers concise."
@@ -330,6 +340,8 @@ if "source_name" not in st.session_state:
     st.session_state.source_name = ""
 if "coach_history" not in st.session_state:
     st.session_state.coach_history = []
+if "review_memory" not in st.session_state:
+    st.session_state.review_memory = {}
 
 st.markdown('<div class="pl-kicker">PROJLEARN · THE STUDY ROOM</div>', unsafe_allow_html=True)
 st.markdown('<div class="pl-title">Turn a source into practice.</div>', unsafe_allow_html=True)
@@ -365,6 +377,7 @@ with left:
                         st.session_state.source_name or "Course material",
                     )
                     st.session_state.coach_history = []
+                    st.session_state.review_memory = {}
                 st.success("LIVE AI compilation complete.")
             except Exception as exc:
                 st.error(str(exc))
@@ -378,6 +391,20 @@ if course:
     st.subheader(course["title"])
     st.caption(course.get("sourceName", "Course material"))
 
+    summary = course.get("summary") or {}
+    st.markdown("### AI summary")
+    st.write(summary.get("overview") or "ProjLearn extracted the main ideas from this source.")
+    sc1, sc2 = st.columns([1.35, 1])
+    with sc1:
+        st.markdown("**Key points**")
+        for point in summary.get("keyPoints", []):
+            st.markdown(f"- {point}")
+    with sc2:
+        st.markdown("**What to focus on**")
+        for point in summary.get("studyFocus", []):
+            st.markdown(f"- {point}")
+
+    st.divider()
     concepts_tab, practice_tab, coach_tab, evidence_tab = st.tabs(["Concepts", "Practice", "Course coach", "Source evidence"])
 
     with concepts_tab:
@@ -391,6 +418,13 @@ if course:
                     st.caption("Needs: " + ", ".join(concept["prerequisiteTitles"]))
 
     with practice_tab:
+        if st.session_state.review_memory:
+            st.markdown("### Review these first")
+            st.caption("Concepts you missed stay at the top of your review queue.")
+            for key, review in st.session_state.review_memory.items():
+                st.markdown(f"**{review['conceptTitle']}** — {review['prompt']}")
+            st.divider()
+
         for i, prompt in enumerate(course["prompts"]):
             st.markdown(f"#### {i+1}. {prompt['prompt']}")
             st.caption(f"{prompt['conceptTitle']} · {prompt['difficulty']}")
@@ -424,6 +458,20 @@ if course:
                 st.write("**Source:**", prompt["citation"]["quote"])
                 page = prompt["citation"].get("page")
                 st.caption(f"{prompt['citation'].get('source','Course source')}" + (f" · p. {page}" if page else ""))
+
+            r1, r2 = st.columns(2)
+            if r1.button("I had it", key=f"knew_{i}", use_container_width=True):
+                st.session_state.review_memory.pop(str(i), None)
+                st.success("Removed from immediate review.")
+            if r2.button("I missed it", key=f"missed_{i}", use_container_width=True):
+                st.session_state.review_memory[str(i)] = {
+                    "conceptTitle": prompt["conceptTitle"],
+                    "prompt": f"Try this again from another angle: explain {prompt['conceptTitle']} in your own words and connect it to the source.",
+                    "expectedAnswer": prompt["expectedAnswer"],
+                    "evidence": prompt["citation"]["quote"],
+                    "misses": st.session_state.review_memory.get(str(i), {}).get("misses", 0) + 1,
+                }
+                st.warning("Saved as a review priority for this session.")
             st.divider()
 
     with coach_tab:

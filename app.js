@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918j";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918k";
 import {
   buildSession,
   calculateMastery,
@@ -6,10 +6,10 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918j";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918j";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918j";
-import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918j";
+} from "./src/engine.js?v=20260918k";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918k";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918k";
+import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918k";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";

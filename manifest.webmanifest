@@ -1,0 +1,16 @@
+{
+  "name": "ProjLearn — Course-to-Agent Learning",
+  "short_name": "ProjLearn",
+  "description": "Compile course material into a source-grounded adaptive study agent.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f0e7",
+  "theme_color": "#f3f0e7",
+  "icons": [
+    {
+      "src": "/assets/l8-social.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

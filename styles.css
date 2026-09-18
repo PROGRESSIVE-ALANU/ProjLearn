@@ -2932,3 +2932,28 @@ body { zoom: var(--a11y-scale); }
   .accessibility-setting output { text-align: left; }
   .speech-setting input[type="range"] { width: 100%; }
 }
+
+/* Build 18j deployment marker + rail accessibility shortcut */
+.rail-utility-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+.rail-a11y-button {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.build-marker {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255,255,255,.55);
+  font: 8px ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+@media(max-width:760px) {
+  .rail-bottom .rail-utility-actions { display: flex; }
+  .build-marker { display: none; }
+}

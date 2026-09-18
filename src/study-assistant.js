@@ -1,20 +1,29 @@
 async function postAssistant(payload) {
-  const response = await fetch('/.netlify/functions/study-assistant', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const endpoints = ['/api/study-assistant', '/.netlify/functions/study-assistant'];
+  let lastResponse = null;
+  let lastData = null;
 
-  let data = null;
-  try { data = await response.json(); }
-  catch { data = null; }
+  for (const endpoint of endpoints) {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
-    const error = new Error(data?.error || `Study assistant unavailable (${response.status}).`);
-    error.code = data?.code || `HTTP_${response.status}`;
-    throw error;
+    let data = null;
+    try { data = await response.json(); }
+    catch { data = null; }
+
+    if (response.ok) return data;
+    lastResponse = response;
+    lastData = data;
+
+    if (response.status !== 404 && response.status !== 405) break;
   }
-  return data;
+
+  const error = new Error(lastData?.error || `Study assistant unavailable (${lastResponse?.status || 'network'}).`);
+  error.code = lastData?.code || `HTTP_${lastResponse?.status || 0}`;
+  throw error;
 }
 
 export async function gradeAnswerWithAI({ question, expectedAnswer, userAnswer, evidence }) {

@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918f";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918g";
 import {
   buildSession,
   calculateMastery,
@@ -6,10 +6,10 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918f";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918f";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918f";
-import { askCourseCoach, gradeAnswerWithAI } from "./src/study-assistant.js?v=20260918f";
+} from "./src/engine.js?v=20260918g";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918g";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918g";
+import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918g";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -90,6 +90,9 @@ const elements = {
   compiledConceptCount: document.querySelector("#compiled-concept-count"),
   humanCheckCount: document.querySelector("#human-check-count"),
   courseSummaryCopy: document.querySelector("#course-summary-copy"),
+  summaryOverview: document.querySelector("#summary-overview"),
+  summaryKeyPoints: document.querySelector("#summary-key-points"),
+  summaryStudyFocus: document.querySelector("#summary-study-focus"),
   graphStatus: document.querySelector("#graph-status"),
   conceptGraphEmpty: document.querySelector("#concept-graph-empty"),
   conceptGraph: document.querySelector("#concept-graph"),
@@ -357,7 +360,29 @@ async function compileHybrid({ text, sourceName, sources }) {
 
 
 function promptState(promptId) {
-  return courseState.promptMemory?.[promptId] ?? { attempts: 0, misses: 0, needsReview: false, lastResult: null, lastSeenAt: 0 };
+  return courseState.promptMemory?.[promptId] ?? {
+    attempts: 0,
+    misses: 0,
+    needsReview: false,
+    lastResult: null,
+    lastSeenAt: 0,
+    reviewVariant: null,
+  };
+}
+
+function activeCoursePrompt(prompt) {
+  if (!prompt) return null;
+  const state = promptState(prompt.id);
+  if (!state.needsReview || !state.reviewVariant) return prompt;
+  return {
+    ...prompt,
+    prompt: state.reviewVariant.prompt || prompt.prompt,
+    expectedAnswer: state.reviewVariant.expectedAnswer || prompt.expectedAnswer,
+    difficulty: state.reviewVariant.difficulty || prompt.difficulty,
+    evidence: state.reviewVariant.evidence || prompt.evidence,
+    citation: state.reviewVariant.citation || prompt.citation,
+    isRemix: true,
+  };
 }
 
 function nextCoursePrompt() {
@@ -463,51 +488,113 @@ function renderSourceQuiz() {
     return;
   }
 
-  const prompt = nextCoursePrompt();
-  const concept = course.concepts.find((item) => item.id === prompt.conceptId);
-  const state = promptState(prompt.id);
+  const basePrompt = nextCoursePrompt();
+  const prompt = activeCoursePrompt(basePrompt);
+  const concept = course.concepts.find((item) => item.id === basePrompt.conceptId);
+  const state = promptState(basePrompt.id);
   elements.sourceQuizEmpty.hidden = true;
   elements.sourceQuizBody.hidden = false;
   elements.sourceQuizConcept.textContent = (concept?.title ?? "Concept").toUpperCase();
-  elements.sourceQuizPriority.textContent = state.needsReview ? "MISSED — REVIEW NOW" : state.attempts ? "RETURN" : "NEW";
+  elements.sourceQuizPriority.textContent = state.needsReview ? (prompt.isRemix ? "REMIXED REVIEW" : "MISSED — REVIEW NOW") : state.attempts ? "RETURN" : "NEW";
   elements.sourceQuizPriority.classList.toggle("is-missed", state.needsReview);
   elements.sourceQuizQuestion.textContent = prompt.prompt;
   elements.typedAnswer.value = "";
   elements.answerFeedback.hidden = true;
   elements.answerFeedback.textContent = "";
   elements.answerFeedback.dataset.verdict = "";
-  elements.checkTypedAnswer.dataset.promptId = prompt.id;
+  elements.checkTypedAnswer.dataset.promptId = basePrompt.id;
   elements.sourceEvidence.textContent = `${prompt.expectedAnswer ? `Expected answer: ${prompt.expectedAnswer}\n\n` : ""}Source evidence: ${prompt.evidence || prompt.citation?.quote || "No excerpt available."}\n\n${citationLabel(prompt.citation)}${prompt.criticNote ? `\nCritic: ${prompt.criticNote}` : ""}`;
   elements.sourceEvidence.hidden = true;
   elements.selfCheckActions.hidden = true;
   elements.revealSource.hidden = false;
-  elements.revealSource.dataset.promptId = prompt.id;
-  elements.markKnew.dataset.promptId = prompt.id;
-  elements.markMissed.dataset.promptId = prompt.id;
-  elements.flagAgent.dataset.promptId = prompt.id;
+  elements.revealSource.dataset.promptId = basePrompt.id;
+  elements.markKnew.dataset.promptId = basePrompt.id;
+  elements.markMissed.dataset.promptId = basePrompt.id;
+  elements.flagAgent.dataset.promptId = basePrompt.id;
 }
 
-function recordPromptResult(promptId, result) {
+async function recordPromptResult(promptId, result) {
+  const basePrompt = courseState.course?.prompts?.find((item) => item.id === promptId);
+  if (!basePrompt) return;
+
   const previous = promptState(promptId);
+  const nextMisses = previous.misses + (result === "missed" ? 1 : 0);
   courseState.promptMemory = {
     ...(courseState.promptMemory ?? {}),
     [promptId]: {
+      ...previous,
       attempts: previous.attempts + 1,
-      misses: previous.misses + (result === "missed" ? 1 : 0),
+      misses: nextMisses,
       needsReview: result === "missed",
       lastResult: result,
       lastSeenAt: Date.now(),
+      reviewVariant: result === "missed" ? previous.reviewVariant : null,
     },
   };
+
   courseState.verificationLog.unshift({
     id: `attempt-${Date.now()}`,
     type: "verified",
-    message: result === "missed" ? "Human self-check marked a retrieval prompt as missed; it is now first in the persistent review queue." : "Human self-check marked a retrieval prompt as recalled; it was removed from immediate review.",
+    message: result === "missed"
+      ? "Miss saved. This concept is now persistent review priority and ProjLearn is preparing a fresh question for the next encounter."
+      : "Recall saved. This concept left the immediate review queue.",
     timestamp: Date.now(),
   });
   persistCourseState();
+
+  if (result === "missed") {
+    const concept = courseState.course?.concepts?.find((item) => item.id === basePrompt.conceptId);
+    showToast("Miss saved. Preparing a fresh review question…");
+
+    try {
+      const remix = await remixMissedQuestion({
+        conceptTitle: concept?.title || "Course concept",
+        originalPrompt: basePrompt.prompt,
+        expectedAnswer: basePrompt.expectedAnswer,
+        evidence: basePrompt.evidence || basePrompt.citation?.quote || "",
+        missCount: nextMisses,
+      });
+      const latest = promptState(promptId);
+      courseState.promptMemory[promptId] = {
+        ...latest,
+        needsReview: true,
+        reviewVariant: {
+          prompt: remix.prompt,
+          expectedAnswer: remix.expectedAnswer,
+          difficulty: remix.difficulty,
+          evidence: basePrompt.evidence || basePrompt.citation?.quote || "",
+          citation: basePrompt.citation,
+          generatedAt: Date.now(),
+          generation: nextMisses,
+        },
+      };
+    } catch (error) {
+      const latest = promptState(promptId);
+      courseState.promptMemory[promptId] = {
+        ...latest,
+        needsReview: true,
+        reviewVariant: {
+          prompt: `Try this again from a different angle: explain ${concept?.title || "this concept"} in your own words and connect it to the source.`,
+          expectedAnswer: basePrompt.expectedAnswer,
+          difficulty: "explain",
+          evidence: basePrompt.evidence || basePrompt.citation?.quote || "",
+          citation: basePrompt.citation,
+          generatedAt: Date.now(),
+          generation: nextMisses,
+          fallback: true,
+        },
+      };
+    }
+
+    persistCourseState();
+    renderCourseAgent();
+    showToast("Fresh review saved. It will come back first next time.");
+    return;
+  }
+
+  persistCourseState();
   renderCourseAgent();
-  showToast(result === "missed" ? "Miss saved. Reload later and this prompt comes back first." : "Recall saved. Moving to the next weak prompt.");
+  showToast("Recall saved. Moving to the next weak prompt.");
 }
 
 function savePromptCorrection(promptId, correction) {
@@ -548,6 +635,9 @@ function renderCourseAgent() {
     elements.compiledSourceCount.textContent = "0";
     elements.compiledConceptCount.textContent = "0";
     elements.courseSummaryCopy.textContent = "Compile a source above to populate this workspace.";
+    elements.summaryOverview.textContent = "Compile a source to generate its summary.";
+    elements.summaryKeyPoints.innerHTML = '<li>Your key ideas will appear here.</li>';
+    elements.summaryStudyFocus.innerHTML = '<li>Your study priorities will appear here.</li>';
     elements.graphStatus.textContent = "waiting";
     elements.conceptGraph.hidden = true;
     elements.conceptGraphEmpty.hidden = false;
@@ -566,6 +656,10 @@ function renderCourseAgent() {
   elements.compiledSourceCount.textContent = String(courseState.sources.length || 1);
   elements.compiledConceptCount.textContent = String(course.concepts.length);
   elements.courseSummaryCopy.textContent = `${course.concepts.length} concepts, ${course.claims.length} source-grounded review claims, and ${course.prompts.length} retrieval prompts are ready. ${course.ai?.enabled ? `One ${course.ai.generatorModel} pass built the study set, then ProjLearn checked the quoted evidence against your source.` : "Local fallback items still need human verification."}`;
+  const summary = course.summary ?? {};
+  elements.summaryOverview.textContent = summary.overview || "ProjLearn extracted the main ideas from this source.";
+  elements.summaryKeyPoints.innerHTML = (summary.keyPoints ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join("") || "<li>Review the source-backed concepts below.</li>";
+  elements.summaryStudyFocus.innerHTML = (summary.studyFocus ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join("") || "<li>Start with the highest-priority concepts.</li>";
   elements.graphStatus.textContent = `${course.edges.length} links`;
   elements.conceptGraphEmpty.hidden = true;
   elements.conceptGraph.hidden = false;
@@ -823,7 +917,8 @@ elements.finishSession.addEventListener("click", () => closeSession({ completed:
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 elements.checkTypedAnswer.addEventListener("click", async () => {
   const promptId = elements.checkTypedAnswer.dataset.promptId;
-  const prompt = courseState.course?.prompts?.find((item) => item.id === promptId);
+  const basePrompt = courseState.course?.prompts?.find((item) => item.id === promptId);
+  const prompt = activeCoursePrompt(basePrompt);
   if (!prompt) return;
 
   const userAnswer = elements.typedAnswer.value.trim();
@@ -875,8 +970,8 @@ elements.typedAnswer.addEventListener("keydown", (event) => {
 });
 
 elements.revealSource.addEventListener("click", () => { elements.sourceEvidence.hidden = false; elements.selfCheckActions.hidden = false; elements.revealSource.hidden = true; });
-elements.markKnew.addEventListener("click", () => recordPromptResult(elements.markKnew.dataset.promptId, "knew"));
-elements.markMissed.addEventListener("click", () => recordPromptResult(elements.markMissed.dataset.promptId, "missed"));
+elements.markKnew.addEventListener("click", async () => { await recordPromptResult(elements.markKnew.dataset.promptId, "knew"); });
+elements.markMissed.addEventListener("click", async () => { await recordPromptResult(elements.markMissed.dataset.promptId, "missed"); });
 elements.flagAgent.addEventListener("click", () => {
   const form = document.querySelector('#correction-form');
   form.dataset.promptId = elements.flagAgent.dataset.promptId;

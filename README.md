@@ -1,4 +1,4 @@
-# ProjLearn v0.2 — live specialist-agent backend
+# ProjLearn v0.3 — single-pass source-grounded compiler
 
 ProjLearn is the TAPIA 2026 Course Study Companion built on the recovered L8 adaptive-learning engine.
 
@@ -6,28 +6,20 @@ ProjLearn is the TAPIA 2026 Course Study Companion built on the recovered L8 ada
 
 - Preserves the L8 8-minute loop, confidence-aware mastery, persistent review state, and misconception signals.
 - Adds a Netlify Function at `/.netlify/functions/compile-course`.
-- Adds **four real specialist model stages** when an API key is configured:
-  1. **Cartographer** — builds a dependency-aware concept map.
-  2. **Scholar** — attaches source-only evidence and page-aware citations.
-  3. **Examiner** — writes retrieval prompts and expected answers grounded in the source.
-  4. **Critic** — independently approves, flags, corrects, or rejects generated claims/prompts.
-- Keeps the fifth **Memory Engine** deterministic and local so learner state is not invented by a model.
+- Uses **one live AI compilation pass** to extract concepts, source evidence, review claims, and retrieval prompts from the uploaded material.
+- Runs a deterministic **Source Validator** afterward: generated citation quotes are matched directly against the uploaded source text.
+- Keeps the **Memory Engine** deterministic and local so learner state is not invented by a model.
 - Uses Structured Outputs / JSON Schema so each specialist returns a predictable data contract.
-- Defaults to `gpt-5.6-luna` for Cartographer/Scholar/Examiner and `gpt-5.6-terra` for Critic.
+- Defaults to `gpt-5.6-luna` for the single structured compilation call.
 - If the API is unavailable or no key is configured, ProjLearn automatically falls back to the local v0.1 compiler so the demo still works.
 - Every concept, claim, and prompt can carry a source citation and page number when page markers are available.
 - Human correction now **propagates**: correcting a prompt marks related claims for the same concept as needing re-check.
 - Missed retrieval prompts still persist across reloads and return first in the next session.
 
-## Why the models are split
+## Why the pipeline is now single-pass
 
-Language tasks use models; memory does not.
+The hackathon build favors reliability over orchestration theater. One structured model call builds the study set; deterministic code verifies quoted evidence and stores learner state. This reduces latency, timeout risk, and cost while keeping the source-grounding story easy to explain to judges.
 
-- `gpt-5.6-luna`: inexpensive generation/extraction stages.
-- `gpt-5.6-terra`: stronger independent critic pass.
-- Browser `localStorage`: attempt history and human verification state.
-
-This gives the hackathon demo visible multi-agent behavior without paying for five expensive frontier calls on every interaction.
 
 ## Run without spending money
 

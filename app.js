@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918h";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918i";
 import {
   buildSession,
   calculateMastery,
@@ -6,16 +6,17 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918h";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918h";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918h";
-import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918h";
+} from "./src/engine.js?v=20260918i";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918i";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918i";
+import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918i";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
 const COURSE_STORAGE_KEY = "projlearn-course-agent-v2";
 const LEGACY_COURSE_STORAGE_KEY = "projlearn-course-agent-v1";
 const THEME_KEY = "projlearn-theme";
+const ACCESSIBILITY_KEY = "projlearn-accessibility-v1";
 
 const DEMO_COURSE_TEXT = `
 Physics II — Electric Fields, Flux, and Potential
@@ -50,6 +51,20 @@ const elements = {
   startLoop: document.querySelector("#start-loop"),
   reviewNow: document.querySelector("#review-now"),
   themeToggle: document.querySelector("#theme-toggle"),
+  accessibilityOpen: document.querySelector("#accessibility-open"),
+  accessibilityDialog: document.querySelector("#accessibility-dialog"),
+  textSizeDown: document.querySelector("#text-size-down"),
+  textSizeReset: document.querySelector("#text-size-reset"),
+  textSizeUp: document.querySelector("#text-size-up"),
+  textSizeValue: document.querySelector("#text-size-value"),
+  highContrastToggle: document.querySelector("#high-contrast-toggle"),
+  reduceMotionToggle: document.querySelector("#reduce-motion-toggle"),
+  readableFontToggle: document.querySelector("#readable-font-toggle"),
+  speechRate: document.querySelector("#speech-rate"),
+  speechRateValue: document.querySelector("#speech-rate-value"),
+  stopReading: document.querySelector("#stop-reading"),
+  readSummary: document.querySelector("#read-summary"),
+  readQuestion: document.querySelector("#read-question"),
   overlay: document.querySelector("#session-overlay"),
   closeSession: document.querySelector("#close-session"),
   sessionStep: document.querySelector("#session-step"),
@@ -808,6 +823,134 @@ function initializeTheme() {
   setTheme(theme);
 }
 
+function defaultAccessibilityPreferences() {
+  return {
+    textScale: 1,
+    highContrast: false,
+    reduceMotion: false,
+    readableFont: false,
+    speechRate: 1,
+  };
+}
+
+function loadAccessibilityPreferences() {
+  const fallback = defaultAccessibilityPreferences();
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACCESSIBILITY_KEY) ?? "null");
+    if (!saved || typeof saved !== "object") return fallback;
+    return {
+      textScale: Math.min(1.35, Math.max(0.9, Number(saved.textScale) || 1)),
+      highContrast: Boolean(saved.highContrast),
+      reduceMotion: Boolean(saved.reduceMotion),
+      readableFont: Boolean(saved.readableFont),
+      speechRate: Math.min(1.4, Math.max(0.7, Number(saved.speechRate) || 1)),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+let accessibilityPreferences = loadAccessibilityPreferences();
+let speakingButton = null;
+
+function persistAccessibilityPreferences() {
+  try { localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify(accessibilityPreferences)); }
+  catch { /* accessibility still works for the current visit */ }
+}
+
+function applyAccessibilityPreferences() {
+  const root = document.documentElement;
+  root.style.setProperty("--a11y-scale", String(accessibilityPreferences.textScale));
+  root.dataset.highContrast = String(accessibilityPreferences.highContrast);
+  root.dataset.reduceMotion = String(accessibilityPreferences.reduceMotion);
+  root.dataset.readableFont = String(accessibilityPreferences.readableFont);
+
+  elements.textSizeValue.textContent = `${Math.round(accessibilityPreferences.textScale * 100)}%`;
+  elements.highContrastToggle.checked = accessibilityPreferences.highContrast;
+  elements.reduceMotionToggle.checked = accessibilityPreferences.reduceMotion;
+  elements.readableFontToggle.checked = accessibilityPreferences.readableFont;
+  elements.speechRate.value = String(accessibilityPreferences.speechRate);
+  elements.speechRateValue.textContent = `${accessibilityPreferences.speechRate.toFixed(1)}×`;
+}
+
+function updateAccessibilityPreference(key, value) {
+  accessibilityPreferences = { ...accessibilityPreferences, [key]: value };
+  persistAccessibilityPreferences();
+  applyAccessibilityPreferences();
+}
+
+function stopReading() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  if (speakingButton) {
+    speakingButton.setAttribute("aria-pressed", "false");
+    speakingButton.classList.remove("is-speaking");
+    const label = speakingButton === elements.readSummary ? "Read aloud" : "Read question";
+    speakingButton.innerHTML = `<span aria-hidden="true">🔊</span> ${label}`;
+  }
+  speakingButton = null;
+}
+
+function speakText(text, button) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) {
+    showToast("There is nothing to read aloud yet.");
+    return;
+  }
+  if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+    showToast("Read aloud is not supported by this browser.");
+    return;
+  }
+  if (speakingButton === button && window.speechSynthesis.speaking) {
+    stopReading();
+    return;
+  }
+
+  stopReading();
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.rate = accessibilityPreferences.speechRate;
+  utterance.onend = stopReading;
+  utterance.onerror = stopReading;
+  speakingButton = button;
+  button.setAttribute("aria-pressed", "true");
+  button.classList.add("is-speaking");
+  button.innerHTML = '<span aria-hidden="true">■</span> Stop';
+  window.speechSynthesis.speak(utterance);
+}
+
+function summarySpeechText() {
+  const course = courseState.course;
+  if (!course) return "";
+  const summary = course.summary ?? {};
+  return [
+    `Summary for ${course.title}.`,
+    summary.overview || "",
+    ...(summary.keyPoints ?? []).map((item, index) => `Key point ${index + 1}: ${item}`),
+    ...(summary.studyFocus ?? []).map((item, index) => `Study focus ${index + 1}: ${item}`),
+  ].filter(Boolean).join(" ");
+}
+
+function questionSpeechText() {
+  const basePrompt = nextCoursePrompt();
+  const prompt = activeCoursePrompt(basePrompt);
+  if (!prompt) return "";
+  const pieces = [prompt.prompt];
+  if (prompt.questionType === "multiple_choice" && Array.isArray(prompt.choices)) {
+    prompt.choices.forEach((choice, index) => pieces.push(`Option ${String.fromCharCode(65 + index)}. ${choice}`));
+  }
+  return pieces.join(" ");
+}
+
+function initializeAccessibility() {
+  applyAccessibilityPreferences();
+  if (!("speechSynthesis" in window)) {
+    elements.readSummary.disabled = true;
+    elements.readQuestion.disabled = true;
+    elements.stopReading.disabled = true;
+    elements.readSummary.title = "Read aloud is not supported by this browser.";
+    elements.readQuestion.title = "Read aloud is not supported by this browser.";
+  }
+}
+
 function currentQuestion() { return session?.questions[session.index] ?? null; }
 function currentConcept() { const question = currentQuestion(); return concepts.find((concept) => concept.id === question?.conceptId) ?? null; }
 
@@ -955,6 +1098,22 @@ elements.submitAnswer.addEventListener("click", submitCurrentAnswer);
 elements.nextQuestion.addEventListener("click", advanceQuestion);
 elements.finishSession.addEventListener("click", () => closeSession({ completed: true }));
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+elements.accessibilityOpen.addEventListener("click", () => {
+  if (typeof elements.accessibilityDialog.showModal === "function") elements.accessibilityDialog.showModal();
+  else elements.accessibilityDialog.setAttribute("open", "");
+});
+elements.textSizeDown.addEventListener("click", () => updateAccessibilityPreference("textScale", Math.max(0.9, Number((accessibilityPreferences.textScale - 0.1).toFixed(2)))));
+elements.textSizeReset.addEventListener("click", () => updateAccessibilityPreference("textScale", 1));
+elements.textSizeUp.addEventListener("click", () => updateAccessibilityPreference("textScale", Math.min(1.35, Number((accessibilityPreferences.textScale + 0.1).toFixed(2)))));
+elements.highContrastToggle.addEventListener("change", () => updateAccessibilityPreference("highContrast", elements.highContrastToggle.checked));
+elements.reduceMotionToggle.addEventListener("change", () => updateAccessibilityPreference("reduceMotion", elements.reduceMotionToggle.checked));
+elements.readableFontToggle.addEventListener("change", () => updateAccessibilityPreference("readableFont", elements.readableFontToggle.checked));
+elements.speechRate.addEventListener("input", () => {
+  updateAccessibilityPreference("speechRate", Number(elements.speechRate.value));
+});
+elements.stopReading.addEventListener("click", stopReading);
+elements.readSummary.addEventListener("click", () => speakText(summarySpeechText(), elements.readSummary));
+elements.readQuestion.addEventListener("click", () => speakText(questionSpeechText(), elements.readQuestion));
 elements.mcqOptions.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-choice-index]");
   if (!button || button.disabled) return;
@@ -1080,6 +1239,7 @@ for (const button of document.querySelectorAll("[data-confidence]")) {
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !elements.overlay.hidden) closeSession(); });
 
 initializeTheme();
+initializeAccessibility();
 renderPendingSources();
 renderCourseAgent();
 renderDashboard();

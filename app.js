@@ -1,4 +1,4 @@
-import { concepts, questions, tracks } from "./data/questions.js?v=20260918i";
+import { concepts, questions, tracks } from "./data/questions.js?v=20260918j";
 import {
   buildSession,
   calculateMastery,
@@ -6,10 +6,10 @@ import {
   normalizeConceptState,
   rankConcepts,
   updateStateRecord,
-} from "./src/engine.js?v=20260918i";
-import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918i";
-import { compileCourseWithAI } from "./src/ai-client.js?v=20260918i";
-import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918i";
+} from "./src/engine.js?v=20260918j";
+import { compileCourseFromText, readCourseFiles } from "./src/course-engine.js?v=20260918j";
+import { compileCourseWithAI } from "./src/ai-client.js?v=20260918j";
+import { askCourseCoach, gradeAnswerWithAI, remixMissedQuestion } from "./src/study-assistant.js?v=20260918j";
 
 const STORAGE_KEY = "projlearn-adaptive-state-v1";
 const LEGACY_STORAGE_KEY = "l8-learning-state-v1";
@@ -52,6 +52,7 @@ const elements = {
   reviewNow: document.querySelector("#review-now"),
   themeToggle: document.querySelector("#theme-toggle"),
   accessibilityOpen: document.querySelector("#accessibility-open"),
+  accessibilityOpenRail: document.querySelector("#accessibility-open-rail"),
   accessibilityDialog: document.querySelector("#accessibility-dialog"),
   textSizeDown: document.querySelector("#text-size-down"),
   textSizeReset: document.querySelector("#text-size-reset"),
@@ -1098,10 +1099,12 @@ elements.submitAnswer.addEventListener("click", submitCurrentAnswer);
 elements.nextQuestion.addEventListener("click", advanceQuestion);
 elements.finishSession.addEventListener("click", () => closeSession({ completed: true }));
 elements.themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
-elements.accessibilityOpen.addEventListener("click", () => {
+function openAccessibilityDialog() {
   if (typeof elements.accessibilityDialog.showModal === "function") elements.accessibilityDialog.showModal();
   else elements.accessibilityDialog.setAttribute("open", "");
-});
+}
+elements.accessibilityOpen.addEventListener("click", openAccessibilityDialog);
+elements.accessibilityOpenRail.addEventListener("click", openAccessibilityDialog);
 elements.textSizeDown.addEventListener("click", () => updateAccessibilityPreference("textScale", Math.max(0.9, Number((accessibilityPreferences.textScale - 0.1).toFixed(2)))));
 elements.textSizeReset.addEventListener("click", () => updateAccessibilityPreference("textScale", 1));
 elements.textSizeUp.addEventListener("click", () => updateAccessibilityPreference("textScale", Math.min(1.35, Number((accessibilityPreferences.textScale + 0.1).toFixed(2)))));

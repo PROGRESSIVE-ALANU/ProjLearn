@@ -12,7 +12,7 @@
 <meta content="/assets/l8-social.png" property="og:image"/>
 <link href="/assets/l8-mark.svg" rel="icon" type="image/svg+xml"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
-<link href="/styles.css?v=20260918h" rel="stylesheet"/>
+<link href="/styles.css?v=20260918i" rel="stylesheet"/>
 <title>ProjLearn — Your study room</title>
 </head>
 <body class="study-workspace">
@@ -23,7 +23,7 @@
 <nav aria-label="Primary navigation" class="workspace-nav"><a data-view="compiler" href="#compiler"><span aria-hidden="true">▤</span> Source desk <small>01</small></a><a data-view="course-agent" href="#course-agent"><span aria-hidden="true">◇</span> Study room <small>02</small></a><a data-view="adaptive" href="#adaptive"><span aria-hidden="true">↻</span> Daily review <small>03</small></a></nav>
 <div class="rail-focus"><span class="rail-label">NEXT IN DAILY REVIEW</span><strong id="preview-focus-title">Pointer ownership</strong><div class="preview-meter"><span style="--fill: 0%"></span></div><button class="rail-study" id="start-loop" type="button">Start 8-minute session <span aria-hidden="true">↗</span></button></div>
 <div class="rail-bottom"><span class="local-indicator"></span> Saved on this device<button aria-label="Switch to dark theme" class="utility-button" id="theme-toggle" type="button">◐</button></div>
-</aside><header class="workspace-topbar"><div><span>My workspace</span><span class="crumb-divider">/</span><strong id="workspace-location">Source desk</strong></div><div class="topbar-meta"><span class="edition-tag">TAPIA / 2026</span><time id="preview-date">TODAY</time></div></header>
+</aside><header class="workspace-topbar"><div><span>My workspace</span><span class="crumb-divider">/</span><strong id="workspace-location">Source desk</strong></div><div class="topbar-meta"><button aria-haspopup="dialog" class="accessibility-trigger" id="accessibility-open" type="button"><span aria-hidden="true">Aa</span> Accessibility</button><span class="edition-tag">TAPIA / 2026</span><time id="preview-date">TODAY</time></div></header>
 <main id="main">
 
 <section aria-labelledby="compiler-title" class="compiler-section" data-workspace-panel="compiler" id="compiler">
@@ -89,7 +89,7 @@
 <p class="label">AI SUMMARY · READ THIS FIRST</p>
 <h3>The source, compressed.</h3>
 </div>
-<span class="score-pill">SUMMARY</span>
+<div class="panel-heading-actions"><button aria-pressed="false" class="read-aloud-button" id="read-summary" type="button"><span aria-hidden="true">🔊</span> Read aloud</button><span class="score-pill">SUMMARY</span></div>
 </div>
 <p class="summary-overview" id="summary-overview">Compile a source to generate its summary.</p>
 <div class="summary-columns">
@@ -118,7 +118,7 @@
 <a class="empty-source-link" href="#compiler">Go to the source desk ↗</a>
 </div>
 <div class="source-quiz-body" hidden="" id="source-quiz-body">
-<div class="quiz-meta"><span id="source-quiz-concept">CONCEPT</span><b id="source-quiz-priority">NEW</b></div>
+<div class="quiz-meta"><span id="source-quiz-concept">CONCEPT</span><div class="quiz-meta-actions"><button aria-pressed="false" class="read-aloud-button compact-read-button" id="read-question" type="button"><span aria-hidden="true">🔊</span> Read question</button><b id="source-quiz-priority">NEW</b></div></div>
 <h4 id="source-quiz-question">Question</h4>
 <p class="quiz-instruction">Answer from memory first. ProjLearn will compare your response with the source-backed answer before you reveal the evidence.</p>
 <div class="typed-answer-wrap">
@@ -317,6 +317,36 @@
 </section>
 </div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
-<script src="/app.js?v=20260918h" type="module"></script>
+<dialog aria-labelledby="accessibility-title" class="accessibility-dialog" id="accessibility-dialog">
+<form method="dialog" class="accessibility-panel">
+<div class="accessibility-panel-header">
+<div><p class="label">ACCESSIBILITY</p><h2 id="accessibility-title">Make ProjLearn easier to use.</h2></div>
+<button aria-label="Close accessibility settings" class="accessibility-close" value="close">×</button>
+</div>
+<p class="accessibility-intro">These preferences are saved on this device.</p>
+<section class="accessibility-setting" aria-labelledby="text-size-label">
+<div><strong id="text-size-label">Text size</strong><span>Increase the whole interface without changing browser zoom.</span></div>
+<div class="text-size-controls" role="group" aria-label="Text size controls">
+<button id="text-size-down" type="button" aria-label="Decrease text size">A−</button>
+<button id="text-size-reset" type="button">Reset</button>
+<button id="text-size-up" type="button" aria-label="Increase text size">A+</button>
+</div>
+<output id="text-size-value" aria-live="polite">100%</output>
+</section>
+<label class="accessibility-toggle"><span><strong>High contrast</strong><small>Increase text, border, and surface contrast.</small></span><input id="high-contrast-toggle" type="checkbox"/></label>
+<label class="accessibility-toggle"><span><strong>Reduce motion</strong><small>Turn off animated transitions and smooth scrolling.</small></span><input id="reduce-motion-toggle" type="checkbox"/></label>
+<label class="accessibility-toggle"><span><strong>Readable font</strong><small>Use a simpler sans-serif typeface throughout the study room.</small></span><input id="readable-font-toggle" type="checkbox"/></label>
+<section class="accessibility-setting speech-setting" aria-labelledby="speech-label">
+<div><strong id="speech-label">Read-aloud speed</strong><span>Adjust summary and question narration.</span></div>
+<input aria-label="Read aloud speed" id="speech-rate" type="range" min="0.7" max="1.4" step="0.1" value="1"/>
+<output id="speech-rate-value">1.0×</output>
+</section>
+<div class="accessibility-panel-actions">
+<button class="button button-secondary" id="stop-reading" type="button">Stop reading</button>
+<button class="button button-primary" value="close">Done</button>
+</div>
+</form>
+</dialog>
+<script src="/app.js?v=20260918i" type="module"></script>
 </body>
 </html>

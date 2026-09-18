@@ -513,10 +513,11 @@ function renderSourceQuiz() {
   elements.flagAgent.dataset.promptId = basePrompt.id;
 }
 
-async function recordPromptResult(promptId, result) {
+async function recordPromptResult(promptId, result, { render = true, notify = true } = {}) {
   const basePrompt = courseState.course?.prompts?.find((item) => item.id === promptId);
   if (!basePrompt) return;
 
+  const activePrompt = activeCoursePrompt(basePrompt);
   const previous = promptState(promptId);
   const nextMisses = previous.misses + (result === "missed" ? 1 : 0);
   courseState.promptMemory = {
@@ -560,14 +561,14 @@ async function recordPromptResult(promptId, result) {
       reviewVariant: immediateFallback,
     };
     persistCourseState();
-    showToast("Miss saved. Preparing a fresh review question…");
+    if (notify) showToast("Miss saved. Preparing a fresh review question…");
 
     try {
       const remix = await remixMissedQuestion({
         conceptTitle: concept?.title || "Course concept",
-        originalPrompt: basePrompt.prompt,
-        expectedAnswer: basePrompt.expectedAnswer,
-        evidence: basePrompt.evidence || basePrompt.citation?.quote || "",
+        originalPrompt: activePrompt?.prompt || basePrompt.prompt,
+        expectedAnswer: activePrompt?.expectedAnswer || basePrompt.expectedAnswer,
+        evidence: activePrompt?.evidence || basePrompt.evidence || basePrompt.citation?.quote || "",
         missCount: nextMisses,
       });
       const latest = promptState(promptId);
@@ -603,14 +604,14 @@ async function recordPromptResult(promptId, result) {
     }
 
     persistCourseState();
-    renderCourseAgent();
-    showToast("Fresh review saved. It will come back first next time.");
+    if (render) renderCourseAgent();
+    if (notify) showToast("Fresh review saved. It will come back first next time.");
     return;
   }
 
   persistCourseState();
-  renderCourseAgent();
-  showToast("Recall saved. Moving to the next weak prompt.");
+  if (render) renderCourseAgent();
+  if (notify) showToast("Recall saved. Moving to the next weak prompt.");
 }
 
 function savePromptCorrection(promptId, correction) {
@@ -959,13 +960,20 @@ elements.checkTypedAnswer.addEventListener("click", async () => {
       evidence: prompt.evidence || prompt.citation?.quote || "",
     });
     elements.answerFeedback.dataset.verdict = grade.verdict;
-    elements.answerFeedback.textContent = grade.feedback + (grade.missingPoint ? ` Missing: ${grade.missingPoint}` : "");
+    const rememberedAs = grade.verdict === "correct" ? "knew" : "missed";
+    elements.answerFeedback.textContent = grade.feedback
+      + (grade.missingPoint ? ` Missing: ${grade.missingPoint}` : "")
+      + (rememberedAs === "missed" ? " Saved to your review memory." : " Cleared from immediate review.");
     elements.selfCheckActions.hidden = false;
+    void recordPromptResult(promptId, rememberedAs, { render: false, notify: false });
   } catch (error) {
     const fallback = gradeTypedAnswer(userAnswer, prompt.expectedAnswer);
     elements.answerFeedback.dataset.verdict = fallback.verdict;
     elements.answerFeedback.textContent = `AI grading was unavailable (${error?.code || "ASSISTANT_FAILED"}). Fast local check: ${fallback.message}`;
     elements.selfCheckActions.hidden = false;
+    if (fallback.verdict === "strong" || fallback.verdict === "review") {
+      void recordPromptResult(promptId, fallback.verdict === "strong" ? "knew" : "missed", { render: false, notify: false });
+    }
   } finally {
     elements.checkTypedAnswer.disabled = false;
     elements.checkTypedAnswer.textContent = "Check answer";

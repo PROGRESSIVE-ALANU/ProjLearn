@@ -46,6 +46,8 @@ async function callStructured({ model, instructions, input, schema, schemaName, 
     throw error;
   }
 
+  const started = Date.now();
+  console.info('ProjLearn stage started', { stage: schemaName, model });
   const response = await fetch(OPENAI_URL, {
     method: 'POST',
     signal: AbortSignal.timeout(45000),
@@ -76,8 +78,10 @@ async function callStructured({ model, instructions, input, schema, schemaName, 
     const message = body?.error?.message || `OpenAI request failed (${response.status}).`;
     const error = new Error(message);
     error.code = body?.error?.code || `OPENAI_${response.status}`;
+    console.error('ProjLearn provider failure', { stage: schemaName, status: response.status, type: String(body?.error?.type || '').slice(0,80), param: String(body?.error?.param || '').slice(0,80) });
     throw error;
   }
+  console.info('ProjLearn stage returned', { stage: schemaName, elapsedMs: Date.now() - started, status: body.status, incompleteReason: body.incomplete_details?.reason });
   return JSON.parse(extractText(body));
 }
 
@@ -342,7 +346,7 @@ export async function handler(event) {
     // Provider errors can contain credential fragments: never return or log raw messages.
     const knownCodes = new Set(['invalid_api_key', 'insufficient_quota', 'rate_limit_exceeded', 'model_not_found', 'NO_API_KEY']);
     const code = knownCodes.has(error?.code) ? error.code : 'COMPILE_FAILED';
-    console.error('ProjLearn compile failure', { code });
+    console.error('ProjLearn compile failure', { code, name: error?.name, causeCode: ['UND_ERR_CONNECT_TIMEOUT', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT'].includes(error?.cause?.code) ? error.cause.code : undefined });
     return json(502, { error: 'Live AI compilation failed. Check the server configuration or try again.', code });
   }
 }

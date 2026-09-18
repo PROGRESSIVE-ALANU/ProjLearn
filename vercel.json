@@ -1,0 +1,21 @@
+{
+  "functions": {
+    "api/compile-course.mjs": {
+      "maxDuration": 30
+    },
+    "api/study-assistant.mjs": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}

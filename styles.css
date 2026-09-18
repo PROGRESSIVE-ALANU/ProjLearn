@@ -2737,3 +2737,42 @@ svg {
   .summary-columns { grid-template-columns: 1fr; gap: 18px; }
   .summary-overview { font-size: 17px; }
 }
+
+/* Mixed clickable multiple-choice practice */
+.mcq-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 2px;
+}
+.mcq-option {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.mcq-option span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font: 10px ui-monospace, monospace;
+  font-weight: 700;
+}
+.mcq-option strong { font-size: 12px; line-height: 1.45; font-weight: 500; }
+.mcq-option:hover:not(:disabled) { border-color: #7694df; background: color-mix(in srgb, #315bcb 4%, var(--surface)); }
+.mcq-option.is-correct { border-color: var(--aqua); background: color-mix(in srgb, var(--aqua) 12%, var(--surface)); }
+.mcq-option.is-wrong { border-color: var(--coral); background: color-mix(in srgb, var(--coral) 10%, var(--surface)); }
+.mcq-option:disabled { cursor: default; opacity: 1; }
+@media(max-width:620px) { .mcq-options { grid-template-columns: 1fr; } }

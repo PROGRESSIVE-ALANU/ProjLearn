@@ -103,6 +103,24 @@ Retrieval answers are no longer judged by exact string matching. The browser sen
 
 The Study Room also includes a persistent **Course Coach** beside retrieval practice. It receives only compiled course context and recent local chat history, so it can explain concepts, discuss an answer, compare ideas, or generate another practice question while staying anchored to the uploaded material. Chat history is stored with the rest of the browser-local course state and resets when a new course is compiled.
 
+## Vercel deployment
+
+ProjLearn is prepared for Vercel as well as Netlify.
+
+- Import GitHub repository: `PROGRESSIVE-ALANU/ProjLearn`
+- Branch: `main`
+- Framework preset: **Other**
+- Root directory: repository root
+- Build command: leave empty
+- Output directory: leave empty
+- Add `OPENAI_API_KEY` as a Vercel environment variable for Production, Preview, and Development as appropriate.
+- Optional: add `PROJLEARN_MODEL`; otherwise the server functions use the configured default.
+- Vercel API routes:
+  - `/api/compile-course`
+  - `/api/study-assistant`
+
+The browser clients try Vercel `/api` routes first and fall back to the existing Netlify Function routes when those Vercel routes do not exist, so the repository remains portable between both hosts.
+
 ## Streamlit deployment
 
 ProjLearn can also run as a native Streamlit app from this same repository.

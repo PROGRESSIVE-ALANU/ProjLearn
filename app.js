@@ -333,6 +333,7 @@ function nextCoursePrompt() {
 }
 
 function renderSourceQuiz() {
+  document.querySelector('#correction-form').hidden = true;
   const course = courseState.course;
   const prompts = course?.prompts ?? [];
   const attempted = prompts.filter((prompt) => promptState(prompt.id).attempts > 0).length;
@@ -386,10 +387,9 @@ function recordPromptResult(promptId, result) {
   showToast(result === "missed" ? "Miss saved. Reload later and this prompt comes back first." : "Recall saved. Moving to the next weak prompt.");
 }
 
-function flagCurrentPrompt(promptId) {
+function savePromptCorrection(promptId, correction) {
   const prompt = courseState.course?.prompts?.find((item) => item.id === promptId);
   if (!prompt) return;
-  const correction = window.prompt("What should the corrected answer/source note say? This will override the agent answer for this concept:");
   if (!correction?.trim()) return;
   const cleanCorrection = correction.trim();
   prompt.expectedAnswer = cleanCorrection;
@@ -510,7 +510,7 @@ async function compilePendingFiles() {
       ? `AI-compiled ${course.concepts.length} concepts from ${sources.length} source${sources.length === 1 ? "" : "s"}. Critic filtering is active.`
       : `Compiled locally because the AI backend is unavailable${error?.message ? ` (${error.message})` : ""}. The demo still works, but items require human checks.`;
     showToast(mode === "ai" ? "Course Agent compiled by live specialist agents." : "Course Agent compiled with the local fallback.");
-    document.querySelector("#course-agent")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showWorkspace("course-agent");
   } catch (error) {
     console.error(error);
     elements.compilerNote.textContent = error?.message ?? "Compilation failed.";
@@ -533,7 +533,7 @@ async function loadDemoCourse() {
   renderCourseAgent();
   elements.compilerNote.textContent = mode === "ai" ? "Demo compiled with live AI agents. Reload later: the course state still survives." : "Demo compiled locally. Add an API key later to activate live agents.";
   showToast(mode === "ai" ? "Live-agent TAPIA demo compiled." : "Local TAPIA demo compiled.");
-  document.querySelector("#course-agent")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showWorkspace("course-agent");
 }
 
 function setTheme(theme) {
@@ -699,7 +699,24 @@ elements.themeToggle.addEventListener("click", () => setTheme(document.documentE
 elements.revealSource.addEventListener("click", () => { elements.sourceEvidence.hidden = false; elements.selfCheckActions.hidden = false; elements.revealSource.hidden = true; });
 elements.markKnew.addEventListener("click", () => recordPromptResult(elements.markKnew.dataset.promptId, "knew"));
 elements.markMissed.addEventListener("click", () => recordPromptResult(elements.markMissed.dataset.promptId, "missed"));
-elements.flagAgent.addEventListener("click", () => flagCurrentPrompt(elements.flagAgent.dataset.promptId));
+elements.flagAgent.addEventListener("click", () => {
+  const form = document.querySelector('#correction-form');
+  form.dataset.promptId = elements.flagAgent.dataset.promptId;
+  form.hidden = false;
+  document.querySelector('#correction-text').focus();
+});
+document.querySelector('#correction-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  savePromptCorrection(form.dataset.promptId, document.querySelector('#correction-text').value);
+  form.reset();
+  form.hidden = true;
+  elements.revealSource.focus();
+});
+document.querySelector('#cancel-correction').addEventListener('click', () => {
+  document.querySelector('#correction-form').hidden = true;
+  elements.flagAgent.focus();
+});
 
 for (const button of document.querySelectorAll("[data-confidence]")) {
   button.addEventListener("click", () => {
@@ -719,3 +736,42 @@ initializeTheme();
 renderPendingSources();
 renderCourseAgent();
 renderDashboard();
+
+
+function showWorkspace(view) {
+  const names = { compiler: 'Source desk', 'course-agent': 'Study room', adaptive: 'Daily review' };
+  if (!names[view]) view = 'compiler';
+  document.querySelectorAll('[data-workspace-panel]').forEach(panel => { panel.hidden = panel.dataset.workspacePanel !== view; });
+  document.querySelectorAll('[data-view]').forEach(link => {
+    if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  document.querySelector('#workspace-location').textContent = names[view];
+  history.replaceState(null, '', `#${view}`);
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  const target = link.getAttribute('href').slice(1);
+  if (['compiler', 'course-agent', 'adaptive', 'top'].includes(target)) link.addEventListener('click', event => {
+    event.preventDefault(); showWorkspace(target === 'top' ? 'compiler' : target);
+  });
+});
+window.addEventListener('hashchange', () => showWorkspace(location.hash.slice(1)));
+showWorkspace(location.hash.slice(1) || (courseState.course ? 'course-agent' : 'compiler'));
+const notebookTabs = [...document.querySelectorAll('[data-notebook]')];
+function selectNotebook(tab) {
+  notebookTabs.forEach(item => {
+    const active = item === tab;
+    item.setAttribute('aria-selected', String(active)); item.tabIndex = active ? 0 : -1;
+    document.querySelector(`#${item.getAttribute('aria-controls')}`).hidden = !active;
+  });
+}
+notebookTabs.forEach((tab, index) => {
+  tab.addEventListener('click', () => selectNotebook(tab));
+  tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? notebookTabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + notebookTabs.length) % notebookTabs.length;
+    selectNotebook(notebookTabs[next]); notebookTabs[next].focus();
+  });
+});

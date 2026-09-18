@@ -85,3 +85,22 @@ The four sequential provider calls still need a live latency check against the t
 - Course prompt memory is persistent but not yet full FSRS. Next version adds stability/difficulty/retrievability fields.
 - Browser-local state is enough for the hackathon restart demo; Supabase sync can come later if cross-device persistence is needed.
 - We still need a real human-caught error from testing; do not fabricate one for the judges.
+
+## Study-room interface update
+
+The interface now uses Source desk, Study room, and Daily review views, a persistent sidebar, a practice-first layout, and keyboard-accessible Concepts / Source evidence tabs. Corrections use an inline form instead of a browser-native prompt. The learning data and missed-prompt queue remain compatible with v0.2.
+
+Design references: [Readwise Reader](https://readwise.io/read) for a reading-focused workspace and [RemNote](https://www.remnote.com/) for keeping practice close to source material. No third-party assets were copied.
+
+### Deployment checkpoint — 2026-09-18
+
+- GitHub: `PROGRESSIVE-ALANU/ProjLearn`, production branch `main`.
+- Netlify project: `projlearn-tapia`, site ID `5f2eb4eb-085d-4715-8562-7d37ebb57b48`.
+- URL: https://projlearn-tapia.netlify.app (last verified visibility: private).
+- Build: `node scripts/build.mjs`, publish directory `dist`, functions directory `netlify/functions`.
+- API key is a Netlify secret in Production only; it is never written to this repository.
+- Generator `gpt-5.6-luna`, critic `gpt-5.6-terra`, source limit `180000`.
+- Deployed fallback compilation and missed-prompt persistence passed. First live request returned sanitized `COMPILE_FAILED` after approximately 20 seconds; live AI has **not** passed end-to-end verification.
+- Safe per-stage diagnostics were added after that failure. Inspect the function logs and retest a sample chapter before claiming a working live AI pipeline.
+- Local DOM interaction checks passed for routing, notebook tabs, fallback compilation, missed-prompt memory, inline correction persistence and claim propagation, theme switching, and adaptive-session opening/closing. Updated visual layout still requires live browser review.
+- The separate `l8-learning` project was not modified.

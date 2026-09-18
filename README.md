@@ -47,7 +47,7 @@ PROJLEARN_MAX_SOURCE_CHARS=180000
 
 The included `netlify.toml` builds an allowlisted `dist/` directory and configures Functions separately. Environment files and server source are excluded from the static output. Set the API key for the Functions scope and Production context using Netlify’s dashboard, then redeploy. Do not paste the key into chat.
 
-Local validation: `node --test tests/compile-course.test.mjs` and `node scripts/build.mjs`. Mocked tests do not prove live model access; verify the deployed UI says **LIVE AI**, not **LOCAL FALLBACK**, before presenting the live AI demo.
+Local validation: `node --test tests/compile-course.test.mjs tests/study-assistant.test.mjs` and `node scripts/build.mjs`. Mocked tests do not prove live model access; verify the deployed UI says **LIVE AI**, not **LOCAL FALLBACK**, before presenting the live AI demo.
 
 The live path now uses one provider call per compilation to reduce latency and timeout risk.
 
@@ -60,6 +60,12 @@ The live path now uses one provider call per compilation to reduce latency and t
 5. Without live AI, compilation stays local in the browser.
 
 
+## Semantic answer grading and course coach
+
+Retrieval answers are no longer judged by exact string matching. The browser sends the learner's answer, the source-backed expected answer, the question, and its evidence to a small server-side semantic grader. It evaluates **meaning rather than wording**, so equivalent forms such as `0` and `zero`, notation differences, or paraphrases can still be marked correct. The grader returns `correct`, `partial`, or `incorrect` with a short explanation. If the grader is unavailable, ProjLearn falls back to the local lexical check rather than blocking practice.
+
+The Study Room also includes a persistent **Course Coach** beside retrieval practice. It receives only compiled course context and recent local chat history, so it can explain concepts, discuss an answer, compare ideas, or generate another practice question while staying anchored to the uploaded material. Chat history is stored with the rest of the browser-local course state and resets when a new course is compiled.
+
 ## Streamlit deployment
 
 ProjLearn can also run as a native Streamlit app from this same repository.
@@ -71,7 +77,7 @@ ProjLearn can also run as a native Streamlit app from this same repository.
 - Add `OPENAI_API_KEY` under the Streamlit app's **Secrets**. Do not commit the key to GitHub.
 - Optional: set `PROJLEARN_MODEL` as an environment variable; otherwise the Streamlit app uses `gpt-5.6-luna`.
 
-The Streamlit version supports PDF/TXT/Markdown upload, the same single-pass course compiler, deterministic source-quote validation, concepts/evidence views, and typed retrieval answers with local answer checking.
+The Streamlit version supports PDF/TXT/Markdown upload, the same single-pass course compiler, deterministic source-quote validation, concepts/evidence views, semantic AI answer grading with local fallback, and a source-grounded course coach.
 
 ## TAPIA demo path
 

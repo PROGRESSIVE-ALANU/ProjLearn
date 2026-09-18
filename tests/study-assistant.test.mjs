@@ -46,6 +46,47 @@ test('semantic grader uses structured meaning-based grading', async () => {
   }
 });
 
+test('remixes missed concepts into a fresh source-grounded question', async () => {
+  process.env.OPENAI_API_KEY = 'test-placeholder';
+  const original = globalThis.fetch;
+  let request;
+  globalThis.fetch = async (_url, options) => {
+    request = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        output: [{
+          content: [{
+            text: JSON.stringify({
+              prompt: 'How would you explain why the net flux is zero?',
+              expectedAnswer: 'The net flux is zero because no charge is enclosed.',
+              difficulty: 'explain',
+            }),
+          }],
+        }],
+      }),
+    };
+  };
+
+  try {
+    const response = await handler(event({
+      mode: 'remix',
+      conceptTitle: 'Gauss law',
+      originalPrompt: 'What is the net flux?',
+      expectedAnswer: 'The net flux is zero because no charge is enclosed.',
+      evidence: 'A closed surface with no enclosed charge has zero net flux.',
+      missCount: 2,
+    }));
+    assert.equal(response.statusCode, 200);
+    assert.match(JSON.parse(response.body).remix.prompt, /explain/);
+    assert.equal(request.text.format.name, 'projlearn_review_remix');
+    assert.match(request.instructions, /fresh retrieval question/);
+  } finally {
+    globalThis.fetch = original;
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
 test('course coach receives grounded context and recent chat', async () => {
   process.env.OPENAI_API_KEY = 'test-placeholder';
   const original = globalThis.fetch;

@@ -288,15 +288,6 @@ function resetPipeline() {
   setPipelineStage("memory", "ready", "ready");
 }
 
-async function animateCompilation({ ai = false } = {}) {
-  const stages = ["cartographer", "scholar", "examiner", "critic", "memory"];
-  for (const stage of stages) {
-    setPipelineStage(stage, "working", ai ? "agent" : "working");
-    await new Promise((resolve) => window.setTimeout(resolve, ai ? 110 : 90));
-    setPipelineStage(stage, "complete", stage === "memory" ? "persisted" : "complete");
-  }
-}
-
 async function compileHybrid({ text, sourceName, sources }) {
   resetPipeline();
   setPipelineStage("course-ai", "working", "calling model");

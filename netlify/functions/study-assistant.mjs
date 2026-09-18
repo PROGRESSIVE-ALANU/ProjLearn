@@ -94,10 +94,10 @@ async function chat(body) {
   const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
   if (!message) return json(400, { error: 'Message is required.', code: 'INVALID_INPUT' });
 
-  const compactHistory = history.map((item) => ({
-    role: item?.role === 'assistant' ? 'assistant' : 'user',
-    content: String(item?.content || '').slice(0, 2500),
-  }));
+  const compactHistory = history.map((item) => {
+    const role = item?.role === 'assistant' ? 'COACH' : 'LEARNER';
+    return `${role}: ${String(item?.content || '').slice(0, 2500)}`;
+  }).join('\n');
 
   const response = await callOpenAI({
     model: MODEL,
@@ -105,20 +105,7 @@ async function chat(body) {
     max_output_tokens: 1200,
     reasoning: { effort: 'low' },
     instructions: `You are ProjLearn's course coach. Help the learner understand and practice the uploaded course. Ground answers in the supplied COURSE CONTEXT. If the context does not support a factual claim, say that the uploaded material does not cover it rather than inventing details. You may explain ideas more simply, compare concepts, generate a short practice question, or discuss why an answer is correct or incorrect. Be concise and tutoring-oriented; do not dump a full lecture unless asked.`,
-    input: [
-      {
-        role: 'user',
-        content: [{ type: 'input_text', text: `COURSE CONTEXT:\n${context || '(no compiled course yet)'}` }],
-      },
-      ...compactHistory.map((item) => ({
-        role: item.role,
-        content: [{ type: item.role === 'assistant' ? 'output_text' : 'input_text', text: item.content }],
-      })),
-      {
-        role: 'user',
-        content: [{ type: 'input_text', text: message }],
-      },
-    ],
+    input: `COURSE CONTEXT:\n${context || '(no compiled course yet)'}\n\nRECENT CHAT:\n${compactHistory || '(none)'}\n\nLEARNER: ${message}\nCOACH:`,
   });
 
   return json(200, { reply: extractText(response), model: MODEL });
